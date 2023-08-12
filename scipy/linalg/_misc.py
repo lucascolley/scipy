@@ -3,7 +3,12 @@ from numpy.linalg import LinAlgError
 from .blas import get_blas_funcs
 from .lapack import get_lapack_funcs
 
-__all__ = ['LinAlgError', 'LinAlgWarning', 'norm']
+from scipy._lib._array_api import array_namespace
+
+__all__ = ['LinAlgError', 'LinAlgWarning', 'norm', 'cross', 'diagonal',
+           'matmul', 'matrix_norm', 'matrix_power', 'matrix_rank',
+           'matrix_transpose', 'outer', 'slogdet', 'tensordot', 'vecdot',
+           'trace', 'vector_norm']
 
 
 class LinAlgWarning(RuntimeWarning):
@@ -189,3 +194,98 @@ def _datacopied(arr, original):
     if not isinstance(original, np.ndarray) and hasattr(original, '__array__'):
         return False
     return arr.base is None
+
+
+def cross(x1, x2, *, axis=-1):
+    xp = array_namespace(x1, x2)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.cross(x1, x2, axis=axis)
+    x1 = np.asarray(x1)
+    x2 = np.asarray(x2)
+    return xp.asarray(np.cross(x1, x2, axis=axis))
+
+
+def diagonal(a, *, offset=0):
+    xp = array_namespace(a)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.diagonal(a, offset=offset)
+    a = np.asarray(a)
+    return xp.asarray(np.diagonal(a, offset=offset))
+
+
+def matmul(x1, x2):
+    xp = array_namespace(x1, x2)
+    return xp.matmul(x1, x2)
+
+
+def matrix_norm(x, *, keepdims=False, ord='fro'):
+    xp = array_namespace(x)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.matrix_norm(x, keepdims=keepdims, ord=ord)
+    x = np.asarray(x)
+    return xp.asarray(norm(x, keepdims=keepdims, ord=ord))
+
+
+def matrix_power(x, n):
+    xp = array_namespace(x)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.matrix_power(x, n)
+    x = np.asarray(x)
+    return xp.asarray(np.linalg.matrix_power(x, n))
+
+
+def matrix_rank(x, *, rtol=None):
+    xp = array_namespace(x)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.matrix_rank(x, rtol=rtol)
+    tol = rtol * xp.max(x)
+    x = np.asarray(x)
+    return xp.asarray(np.linalg.matrix_rank(x, tol=tol))
+
+
+def matrix_transpose(x):
+    xp = array_namespace(x)
+    return xp.matrix_transpose(x)
+
+
+def outer(x1, x2):
+    xp = array_namespace(x1, x2)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.outer(x1, x2)
+    x1 = np.asarray(x1)
+    x2 = np.asarray(x2)
+    return xp.asarray(np.outer(x1, x2))
+
+
+def slogdet(x):
+    xp = array_namespace(x)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.slogdet(x)
+    x = np.asarray(x)
+    return xp.asarray(np.linalg.slogdet(x))
+
+
+def tensordot(x1, x2, *, axes=2):
+    xp = array_namespace(x1, x2)
+    return xp.tensordot(x1, x2, axes=axes)
+
+
+def vecdot(x1, x2, *, axis=None):
+    xp = array_namespace(x1, x2)
+    return xp.vecdot(x1, x2, axis=axis)
+
+
+def trace(x, *, offset=0, dtype=None):
+    xp = array_namespace(x)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.trace(x, offset=offset, dtype=dtype)
+    x = np.asarray(x)
+    return xp.asarray(np.trace(x, offset=offset, dtype=dtype))
+
+
+def vector_norm(x, *, axis=None, keepdims=False, ord=2):
+    xp = array_namespace(x)
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.vector_norm(x, axis=axis, keepdims=keepdims, ord=ord)
+    x = np.asarray(x)
+    return xp.asarray(norm(x, axis=axis, keepdims=keepdims, ord=ord))

@@ -6,8 +6,14 @@ from numpy import asarray_chkfinite, asarray, atleast_2d
 from ._misc import LinAlgError, _datacopied
 from .lapack import get_lapack_funcs
 
+from scipy._lib._array_api import array_namespace, is_numpy
+
 __all__ = ['cholesky', 'cho_factor', 'cho_solve', 'cholesky_banded',
            'cho_solve_banded']
+
+
+def arg_err_msg(param):
+    return f'Providing {param!r} is only supported for numpy arrays.'
 
 
 def _cholesky(a, lower=False, overwrite_a=False, clean=True,
@@ -42,7 +48,8 @@ def _cholesky(a, lower=False, overwrite_a=False, clean=True,
     return c, lower
 
 
-def cholesky(a, lower=False, overwrite_a=False, check_finite=True):
+def cholesky(a, lower=False, overwrite_a=False, check_finite=True, *,
+             upper=False):
     """
     Compute the Cholesky decomposition of a matrix.
 
@@ -86,9 +93,22 @@ def cholesky(a, lower=False, overwrite_a=False, check_finite=True):
            [ 0.+2.j,  5.+0.j]])
 
     """
-    c, lower = _cholesky(a, lower=lower, overwrite_a=overwrite_a, clean=True,
-                         check_finite=check_finite)
-    return c
+    xp = array_namespace(a)
+    if is_numpy(xp):
+        c, lower = _cholesky(a, lower=lower, overwrite_a=overwrite_a,
+                             clean=True, check_finite=check_finite)
+        return c
+    if lower:
+        raise ValueError(arg_err_msg("overwrite_x"))
+    if overwrite_a:
+        raise ValueError(arg_err_msg("workers"))
+    if not check_finite:
+        raise ValueError(arg_err_msg("plan"))
+    if hasattr(xp, 'linalg'):
+        return xp.linalg.cholesky(a, upper=upper)
+    a = asarray(a)
+    c, lower = _cholesky(a, clean=True)
+    return xp.asarray(c)
 
 
 def cho_factor(a, lower=False, overwrite_a=False, check_finite=True):

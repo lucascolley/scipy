@@ -163,3 +163,7 @@ def copy(x, *, xp=None):
         xp = array_namespace(x)
 
     return as_xparray(x, copy=True, xp=xp)
+
+
+def is_numpy(xp):
+    return xp.__name__ == "scipy._lib.array_api_compat.array_api_compat.numpy"
