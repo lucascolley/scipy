@@ -5,7 +5,13 @@ import numpy
 from .lapack import get_lapack_funcs
 from ._misc import _datacopied
 
+from scipy._lib._array_api import array_namespace, is_numpy
+
 __all__ = ['qr', 'qr_multiply', 'rq']
+
+
+def arg_err_msg(param):
+    return f'Providing {param!r} is only supported for numpy arrays.'
 
 
 def safecall(f, name, *args, **kwargs):
@@ -117,6 +123,35 @@ def qr(a, overwrite_a=False, lwork=None, mode='full', pivoting=False,
     ((9, 6), (6, 6), (6,))
 
     """
+    xp = array_namespace(a)
+    if is_numpy(xp):
+        return _qr(a, overwrite_a=overwrite_a, lwork=lwork, mode=mode,
+                   pivoting=pivoting, check_finite=check_finite)
+    if overwrite_a:
+        raise ValueError(arg_err_msg("overwrite_a"))
+    if lwork is not None:
+        raise ValueError(arg_err_msg("lwork"))
+    if mode not in {'full', 'economic', 'reduced', 'complete'}:
+        raise ValueError(...)
+    if pivoting:
+        raise ValueError(arg_err_msg("pivoting"))
+    if not check_finite:
+        raise ValueError(arg_err_msg("check_finite"))
+    if hasattr(xp, 'linalg'):
+        # PROBLEM: scipy default mode is full (complete)
+        # but API default is reduced (economic).
+        ...
+        return xp.linalg.qr(a, mode=mode)
+    if mode == 'complete':
+        mode = 'full'
+    elif mode == 'reduced':
+        mode = 'economic'
+    a = numpy.asarray(a)
+    return xp.asarray(_qr(a, mode=mode))
+
+
+def _qr(a, overwrite_a=False, lwork=None, mode='full', pivoting=False,
+       check_finite=True):
     # 'qr' was the old default, equivalent to 'full'. Neither 'full' nor
     # 'qr' are used below.
     # 'raw' is used internally by qr_multiply
