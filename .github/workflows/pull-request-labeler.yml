@@ -1,7 +1,7 @@
 name: "Pull Request Labeler"
 on:
-  pull_request_target:
-    types: [opened]
+  pull_request:
+    types: [opened, reopened]
 
 
 jobs:
@@ -16,7 +16,6 @@ jobs:
     steps:
     - uses: actions/labeler@v5
       continue-on-error: true
-      if: github.repository == 'scipy/scipy'
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         configuration-path: ".github/label-globs.yml"
