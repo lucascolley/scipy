@@ -26,9 +26,7 @@ jobs:
     needs: get_commit_message
     # Ensure (a) this doesn't run on forks by default, and
     #        (b) it does run with Act locally (`github` doesn't exist there)
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: windows-2019
     steps:
       - name: Checkout
@@ -65,9 +63,7 @@ jobs:
   full_dev_py_min_numpy:
     name: cp39 (meson) full, dev.py, minimum numpy
     needs: get_commit_message
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: windows-2019
     steps:
       - name: Checkout
@@ -106,9 +102,7 @@ jobs:
     # TODO: enable ILP64 once possible
     name: cp311 (build sdist + wheel), full, no pythran
     needs: get_commit_message
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: windows-2019
     steps:
       - name: Checkout

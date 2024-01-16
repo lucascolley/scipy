@@ -30,9 +30,7 @@ jobs:
     needs: get_commit_message
     # If using act to run CI locally the github object does not exist and
     # the usual skipping should not be enforced
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -133,9 +131,7 @@ jobs:
   test_venv_install:
     name: Pip install into venv
     needs: get_commit_message
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
@@ -192,9 +188,7 @@ jobs:
     # also uses the vcs->sdist->wheel route.
     name: Python-debug & ATLAS
     needs: get_commit_message
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: ubuntu-22.04  # provides python3.10-dbg
     steps:
       - uses: actions/checkout@v3
@@ -222,9 +216,7 @@ jobs:
     # Purpose is to examine builds with oldest-supported gcc.
     name: Build with gcc-8
     needs: get_commit_message
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: ubuntu-20.04  # 22.04 doesn't support gcc-8
     steps:
       - uses: actions/checkout@v3
@@ -273,9 +265,7 @@ jobs:
     # TODO: re-enable ILP64 build.
     name: Prerelease deps, coverage, and 64-bit BLAS
     needs: get_commit_message
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -359,9 +349,7 @@ jobs:
   linux_32bit:
     name: Linux - 32 bit
     needs: get_commit_message
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
+    #
     runs-on: ubuntu-latest
     # I tried running directly in a container:, using the image: and options:
     # entries. Unfortunately at this time options: does not seem to listen to
