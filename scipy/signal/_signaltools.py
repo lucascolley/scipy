@@ -3120,7 +3120,7 @@ def resample(x, num, t=None, axis=0, window=None, domain='time'):
 
     In this case
 
-    >>> f = signal.resample( signal.decimate(y, N // num), num)
+    >>> f = signal.resample(signal.decimate(y, N // num), num)
 
     runs significantly faster than
 
