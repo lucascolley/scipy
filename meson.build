@@ -154,4 +154,9 @@ if use_pythran
   xsimd_dep = dependency('xsimd', required: false)
 endif
 
+fs = import('fs')
+if not fs.exists('subprojects/boost_math/README.md')
+  error('Missing the `boost_math` submodule! Run `git submodule update --init` to fix this.')
+endif
+
 subdir('scipy')
