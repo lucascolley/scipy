@@ -169,8 +169,8 @@ if SCIPY_ARRAY_API and isinstance(SCIPY_ARRAY_API, str):
         # Note: dask.array main namespace is not array API compatible
         # (to address this, we will fix tests that use the broken dask behavior to
         # use the array-api-compat wrapped version instead)
-        import dask.array as da
-        xp_available_backends.update({'dask.array': da})
+        import dask.array  # type: ignore[import-not-found]
+        xp_available_backends.update({'dask.array': dask.array})
     except ImportError:
         pass
 
