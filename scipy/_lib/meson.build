@@ -180,7 +180,9 @@ py3.install_sources(
   [
     'array_api_compat/array_api_compat/dask/array/__init__.py',
     'array_api_compat/array_api_compat/dask/array/_aliases.py',
+    'array_api_compat/array_api_compat/dask/array/_info.py',
     'array_api_compat/array_api_compat/dask/array/linalg.py',
+    'array_api_compat/array_api_compat/dask/array/fft.py',
   ],
   subdir: 'scipy/_lib/array_api_compat/dask/array',
 )
@@ -192,6 +194,7 @@ py3.install_sources(
     'array_api_compat/array_api_compat/numpy/_typing.py',
     'array_api_compat/array_api_compat/numpy/fft.py',
     'array_api_compat/array_api_compat/numpy/linalg.py',
+    'array_api_compat/array_api_compat/numpy/_info.py',
   ],
   subdir: 'scipy/_lib/array_api_compat/numpy',
 )
