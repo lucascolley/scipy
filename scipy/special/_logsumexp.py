@@ -147,7 +147,9 @@ def _wrap_radians(x, xp=None):
     out = -((-x + math.pi) % (2 * math.pi) - math.pi)
     # preserve relative precision
     no_wrap = xp.abs(x) < xp.pi
-    out[no_wrap] = x[no_wrap]
+    # TODO: i think this is correct but double check
+    # out[no_wrap] = x[no_wrap]
+    out = xp.where(no_wrap, x, out)
     return out
 
 
