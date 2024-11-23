@@ -70,7 +70,6 @@ class TestLogSumExp:
         nan = xp.asarray([xp.nan])
         xp_assert_equal(logsumexp(inf), inf[0])
         xp_assert_equal(logsumexp(-inf), -inf[0])
-
         xp_assert_equal(logsumexp(nan), nan[0])
         xp_assert_equal(logsumexp(xp.asarray([-xp.inf, -xp.inf])), -inf[0])
 
