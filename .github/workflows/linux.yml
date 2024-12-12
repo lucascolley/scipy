@@ -62,12 +62,13 @@ jobs:
 
     - name: Install Boost
       run: |
-        wget -O boost_1_87_0.tar.bz2 https://boostorg.jfrog.io/artifactory/main/release/1.87.0/source/boost_1_87_0.tar.bz2
-        tar --bzip2 -xf boost_1_82_0.tar.bz2
         mkdir -p "${BOOST_DIR}"
         cd ${{ env.BOOST_DIR }}
-        ./bootstrap.sh --prefix=${{ env.BOOST_DIR }} --show-libraries --with-libraries=math
-        ./b2 install
+        wget -O boost_1_87_0.tar.bz2 https://boostorg.jfrog.io/artifactory/main/release/1.87.0/source/boost_1_87_0.tar.bz2
+        tar --bzip2 -xf boost_1_87_0.tar.bz2
+        cd boost_1_87_0
+        ./bootstrap.sh --prefix=${{ env.BOOST_DIR }} --show-libraries --with-libraries='math'
+        ./b2 install --prefix=${{ env.BOOST_DIR }}
 
     - name: Install Python packages
       if: matrix.python-version == '3.10'
