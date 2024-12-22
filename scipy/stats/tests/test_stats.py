@@ -84,6 +84,7 @@ class TestTrimmedStats:
     # TODO: write these tests to handle missing values properly
     dprec = np.finfo(np.float64).precision
 
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in divide") # for dask
     def test_tmean(self, xp):
         x = xp.asarray(X.tolist())  # use default dtype of xp
 
@@ -130,6 +131,7 @@ class TestTrimmedStats:
         y_true = [4.5, 10, 17, 21, xp.nan, xp.nan, xp.nan, xp.nan, xp.nan]
         xp_assert_close(y, xp.asarray(y_true))
 
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in divide") # for dask
     @skip_xp_backends('cupy',
                       reason="cupy/cupy#8391")
     def test_tvar(self, xp):
@@ -530,6 +532,7 @@ class TestPearsonr:
         xp_assert_equal(low, -one)
         xp_assert_equal(high, one)
 
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in divide")
     @skip_xp_backends('jax.numpy', reason="JAX doesn't allow item assignment.")
     def test_length_two_constant_input(self, xp):
         # Zero variance input
@@ -715,6 +718,7 @@ class TestPearsonr:
             with pytest.raises(ValueError, match=message):
                 stats.pearsonr(x, x, method=stats.PermutationMethod())
 
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in divide")
     @skip_xp_backends('jax.numpy',
                       reason='JAX arrays do not support item assignment')
     def test_nd_special_cases(self, xp):
@@ -2744,6 +2748,7 @@ class TestSEM:
     testcase = [1., 2., 3., 4.]
     scalar_testcase = 4.
 
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in divide")
     def test_sem_scalar(self, xp):
         # This is not in R, so used:
         #     sqrt(var(testcase)*3/4)/sqrt(3)
@@ -2845,20 +2850,28 @@ class TestZmapZscore:
         scores = xp.asarray([-3, -1, 2, np.nan])
         compare = xp.asarray([-8, -3, 2, 7, 12, np.nan])
         z = stats.zmap(scores, compare, ddof=ddof, nan_policy='omit')
-        ref = stats.zmap(scores, compare[~xp.isnan(compare)], ddof=ddof)
+        # exclude nans from compare, don't use isnan + mask since that messes up
+        # dask
+        ref = stats.zmap(scores, compare[:5], ddof=ddof)
         xp_assert_close(z, ref)
 
     @pytest.mark.parametrize('ddof', [0, 2])
     def test_zmap_nan_policy_omit_with_axis(self, ddof, xp):
         scores = xp.reshape(xp.arange(-5.0, 9.0), (2, -1))
-        compare = xp.reshape(xp.linspace(-8, 6, 24), (2, -1))
-        compare[0, 4] = xp.nan
-        compare[0, 6] = xp.nan
-        compare[1, 1] = xp.nan
+        compare = np.reshape(np.linspace(-8, 6, 24), (2, -1))
+        compare[0, 4] = np.nan
+        compare[0, 6] = np.nan
+        compare[1, 1] = np.nan
+        # convert from numpy since some libraries like dask
+        # can't handle the data-dependent shapes from the isnan masking
+        compare_0_notna = xp.asarray(compare[0, :][~np.isnan(compare[0, :])])
+        compare_1_notna = xp.asarray(compare[1, :][~np.isnan(compare[1, :])])
+        compare = xp.asarray(compare)
+
         z = stats.zmap(scores, compare, nan_policy='omit', axis=1, ddof=ddof)
-        res0 = stats.zmap(scores[0, :], compare[0, :][~xp.isnan(compare[0, :])],
+        res0 = stats.zmap(scores[0, :], compare_0_notna,
                           ddof=ddof)
-        res1 = stats.zmap(scores[1, :], compare[1, :][~xp.isnan(compare[1, :])],
+        res1 = stats.zmap(scores[1, :], compare_1_notna,
                           ddof=ddof)
         expected = xp.stack((res0, res1))
         xp_assert_close(z, expected)
@@ -2950,6 +2963,8 @@ class TestZmapZscore:
             z = stats.zscore(x)
         xp_assert_equal(z, xp.full(x.shape, xp.nan))
 
+    @pytest.mark.filterwarnings("ignore::FutureWarning") # for dask
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in divide") # for dask
     def test_zscore_constant_input_2d(self, xp):
         x = xp.asarray([[10.0, 10.0, 10.0, 10.0],
                         [10.0, 11.0, 12.0, 13.0]])
@@ -2971,6 +2986,7 @@ class TestZmapZscore:
             z = stats.zscore(y, axis=None)
         xp_assert_equal(z, xp.full(y.shape, xp.asarray(xp.nan)))
 
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in divide") # for dask
     def test_zscore_constant_input_2d_nan_policy_omit(self, xp):
         x = xp.asarray([[10.0, 10.0, 10.0, 10.0],
                         [10.0, 11.0, 12.0, xp.nan],
@@ -2990,6 +3006,7 @@ class TestZmapZscore:
                                         [-s, 0, s, xp.nan],
                                         [-s2/2, s2, xp.nan, -s2/2]]))
 
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in divide") # for dask
     def test_zscore_2d_all_nan_row(self, xp):
         # A row is all nan, and we use axis=1.
         x = xp.asarray([[np.nan, np.nan, np.nan, np.nan],
@@ -2998,6 +3015,7 @@ class TestZmapZscore:
         xp_assert_close(z, xp.asarray([[np.nan, np.nan, np.nan, np.nan],
                                        [-1.0, -1.0, 1.0, 1.0]]))
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings
     @skip_xp_backends('cupy', reason="cupy/cupy#8391")
     def test_zscore_2d_all_nan(self, xp):
         # The entire 2d array is nan, and we use axis=None.
@@ -3054,6 +3072,7 @@ class TestZmapZscore:
             res = stats.zscore(y, axis=None)
         assert_equal(res[1:], np.nan)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings
     def test_degenerate_input(self, xp):
         scores = xp.arange(3)
         compare = xp.ones(3)
@@ -3397,6 +3416,8 @@ class TestMoments:
     @array_api_compatible
     @pytest.mark.parametrize('size', [10, (10, 2)])
     @pytest.mark.parametrize('m, c', product((0, 1, 2, 3), (None, 0, 1)))
+    # ignore warning for dask
+    @pytest.mark.filterwarnings("ignore:divide by zero encountered in divide")
     def test_moment_center_scalar_moment(self, size, m, c, xp):
         rng = np.random.default_rng(6581432544381372042)
         x = xp.asarray(rng.random(size=size))
@@ -3408,6 +3429,8 @@ class TestMoments:
     @array_api_compatible
     @pytest.mark.parametrize('size', [10, (10, 2)])
     @pytest.mark.parametrize('c', (None, 0, 1))
+    # ignore warning for dask
+    @pytest.mark.filterwarnings("ignore:divide by zero encountered in divide")
     def test_moment_center_array_moment(self, size, c, xp):
         rng = np.random.default_rng(1706828300224046506)
         x = xp.asarray(rng.random(size=size))
@@ -3544,6 +3567,8 @@ class TestMoments:
     @pytest.mark.parametrize('order', [0, 1, 2, 3])
     @pytest.mark.parametrize('axis', [-1, 0, 1])
     @pytest.mark.parametrize('center', [None, 0])
+    # ignore warning for dask
+    @pytest.mark.filterwarnings("ignore:divide by zero encountered in divide")
     def test_moment_array_api(self, xp, order, axis, center):
         rng = np.random.default_rng(34823589259425)
         x = rng.random(size=(5, 6, 7))
@@ -3574,10 +3599,9 @@ class TestSkew(SkewKurtosisTest):
                 res = stat_fun(x)
         xp_assert_equal(res, xp.asarray(xp.nan))
 
-    @skip_xp_backends('jax.numpy',
-                      reason="JAX arrays do not support item assignment")
-    @pytest.mark.usefixtures("skip_xp_backends")
     @array_api_compatible
+    # ignore warning for dask
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide")
     def test_skewness(self, xp):
         # Scalar test case
         y = stats.skew(xp.asarray(self.scalar_testcase))
@@ -3686,6 +3710,7 @@ class TestKurtosis(SkewKurtosisTest):
     @skip_xp_backends('jax.numpy',
                       reason='JAX arrays do not support item assignment')
     @pytest.mark.usefixtures("skip_xp_backends")
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide")
     @array_api_compatible
     def test_kurtosis(self, xp):
         # Scalar test case
@@ -3840,6 +3865,7 @@ class TestStudentTest:
     P1_1_l = P1_1 / 2
     P1_1_g = 1 - (P1_1 / 2)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings
     def test_onesample(self, xp):
         with suppress_warnings() as sup, \
                 np.errstate(invalid="ignore", divide="ignore"):
@@ -3892,6 +3918,7 @@ class TestStudentTest:
             assert_raises(ValueError, stats.ttest_1samp, x, 5.0,
                           nan_policy='foobar')
 
+    @pytest.mark.filterwarnings("ignore:divide by zero encountered in divide")
     def test_1samp_alternative(self, xp):
         message = "`alternative` must be 'less', 'greater', or 'two-sided'."
         with pytest.raises(ValueError, match=message):
@@ -6005,6 +6032,7 @@ def test_ttest_ind_with_uneq_var(xp):
 @pytest.mark.skip_xp_backends(cpu_only=True,
                               reason='Uses NumPy for pvalue, CI')
 @pytest.mark.usefixtures("skip_xp_backends")
+@pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings
 def test_ttest_ind_zero_division(xp):
     # test zero division problem
     x = xp.zeros(3)
@@ -6048,6 +6076,7 @@ def test_ttest_ind_nan_2nd_arg():
                     atol=1e-15)
 
 
+@pytest.mark.filterwarnings("ignore::FutureWarning") # for dask
 @array_api_compatible
 def test_ttest_ind_empty_1d_returns_nan(xp):
     # Two empty inputs should return a TtestResult containing nan
@@ -6064,6 +6093,7 @@ def test_ttest_ind_empty_1d_returns_nan(xp):
 
 
 @skip_xp_backends('cupy', reason='cupy/cupy#8391')
+@pytest.mark.filterwarnings("ignore::FutureWarning") # for dask
 @pytest.mark.usefixtures("skip_xp_backends")
 @array_api_compatible
 @pytest.mark.parametrize('b, expected_shape',
@@ -6130,6 +6160,7 @@ def test_gh5686(xp):
 @pytest.mark.skip_xp_backends(cpu_only=True,
                               reason='Uses NumPy for pvalue, CI')
 @pytest.mark.usefixtures("skip_xp_backends")
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")  # for dask, multiple warnings
 def test_ttest_ind_from_stats_inputs_zero(xp):
     # Regression test for gh-6409.
     zero = xp.asarray(0.)
@@ -6144,6 +6175,7 @@ def test_ttest_ind_from_stats_inputs_zero(xp):
 @pytest.mark.skip_xp_backends(cpu_only=True,
                               reason='Uses NumPy for pvalue, CI')
 @pytest.mark.usefixtures("skip_xp_backends")
+@pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings
 def test_ttest_uniform_pvalues(xp):
     # test that p-values are uniformly distributed under the null hypothesis
     rng = np.random.default_rng(246834602926842)
@@ -6184,6 +6216,7 @@ def _convert_pvalue_alternative(t, p, alt, xp):
 @pytest.mark.slow
 @pytest.mark.skip_xp_backends(cpu_only=True,
                               reason='Uses NumPy for pvalue, CI')
+@pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings
 @pytest.mark.usefixtures("skip_xp_backends")
 @array_api_compatible
 def test_ttest_1samp_new(xp):
@@ -6307,6 +6340,7 @@ def test_ttest_1samp_popmean_array(xp):
 
 
 class TestDescribe:
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask
     @array_api_compatible
     def test_describe_scalar(self, xp):
         with suppress_warnings() as sup, \
@@ -6337,8 +6371,8 @@ class TestDescribe:
         assert n == nc
         xp_assert_equal(mm[0], mmc[0])
         xp_assert_equal(mm[1], mmc[1])
-        xp_assert_close(m, mc, rtol=4 * xp.finfo(m.dtype).eps)
-        xp_assert_close(v, vc, rtol=4 * xp.finfo(m.dtype).eps)
+        xp_assert_close(m, mc, rtol=4 * xp_test.finfo(m.dtype).eps)
+        xp_assert_close(v, vc, rtol=4 * xp_test.finfo(m.dtype).eps)
         xp_assert_close(sk, skc)
         xp_assert_close(kurt, kurtc)
 
@@ -6346,8 +6380,8 @@ class TestDescribe:
         assert n == nc
         xp_assert_equal(mm[0], mmc[0])
         xp_assert_equal(mm[1], mmc[1])
-        xp_assert_close(m, mc, rtol=4 * xp.finfo(m.dtype).eps)
-        xp_assert_close(v, vc, rtol=4 * xp.finfo(m.dtype).eps)
+        xp_assert_close(m, mc, rtol=4 * xp_test.finfo(m.dtype).eps)
+        xp_assert_close(v, vc, rtol=4 * xp_test.finfo(m.dtype).eps)
         xp_assert_close(sk, skc)
         xp_assert_close(kurt, kurtc)
 
@@ -6907,6 +6941,7 @@ def check_equal_pmean(*args, **kwargs):
 
 @array_api_compatible
 class TestHMean:
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings happen
     def test_0(self, xp):
         a = [1, 0, 2]
         desired = 0
@@ -6922,11 +6957,13 @@ class TestHMean:
         desired = 4. / (1. / 1 + 1. / 2 + 1. / 3 + 1. / 4)
         check_equal_hmean(a, desired, xp=xp)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings happen
     def test_1d_with_zero(self, xp):
         a = np.array([1, 0])
         desired = 0.0
         check_equal_hmean(a, desired, xp=xp, rtol=0.0)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings happen
     @skip_xp_backends('array_api_strict',
                       reason=("`array_api_strict.where` `fillvalue` doesn't "
                                "accept Python scalars. See data-apis/array-api#807."))
@@ -6951,6 +6988,7 @@ class TestHMean:
         desired = np.array([22.88135593, 39.13043478, 52.90076336, 65.45454545])
         check_equal_hmean(a, desired, axis=0, xp=xp)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings happen
     def test_2d_axis0_with_zero(self, xp):
         a = [[10, 0, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         desired = np.array([22.88135593, 0.0, 52.90076336, 65.45454545])
@@ -6962,6 +7000,7 @@ class TestHMean:
         desired = np.array([19.2, 63.03939962, 103.80078637])
         check_equal_hmean(a, desired, axis=1, xp=xp)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings happen
     def test_2d_axis1_with_zero(self, xp):
         a = [[10, 0, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         desired = np.array([0.0, 63.03939962, 103.80078637])
@@ -7022,6 +7061,7 @@ class TestHMean:
 
 @array_api_compatible
 class TestGMean:
+    @pytest.mark.filterwarnings("ignore:divide by zero encountered in log") # for dask
     def test_0(self, xp):
         a = [1, 0, 2]
         desired = 0
@@ -7074,6 +7114,7 @@ class TestGMean:
         desired = 1e200
         check_equal_gmean(a, desired, rtol=1e-13, xp=xp)
 
+    @pytest.mark.filterwarnings("ignore:divide by zero encountered in log") # for dask
     def test_1d_with_0(self, xp):
         #  Test a 1d case with zero element
         a = [10, 20, 30, 40, 50, 60, 70, 80, 90, 0]
@@ -7081,6 +7122,7 @@ class TestGMean:
         with np.errstate(all='ignore'):
             check_equal_gmean(a, desired, xp=xp)
 
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in log") # for dask
     def test_1d_neg(self, xp):
         #  Test a 1d case with negative element
         a = [10, 20, 30, 40, 50, 60, 70, 80, 90, -1]
@@ -7154,6 +7196,7 @@ class TestPMean:
         desired = np.sqrt((1**2 + 2**2 + 3**2 + 4**2) / 4)
         check_equal_pmean(a, p, desired, xp=xp)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")
     def test_1d_with_zero(self, xp):
         a, p = np.array([1, 0]), -1
         desired = 0.0
@@ -9400,6 +9443,7 @@ class TestXP_Mean:
         with pytest.raises(ValueError, match=message):
             _xp_mean(x, weights=w)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings
     def test_special_cases(self, xp):
         # weights sum to zero
         weights = xp.asarray([-1., 0., 1.])
@@ -9413,6 +9457,7 @@ class TestXP_Mean:
         res = _xp_mean(xp.asarray([1., 1., 2.]), weights=weights)
         xp_assert_close(res, xp.asarray(np.inf))
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning") # for dask, multiple warnings
     def test_nan_policy(self, xp):
         x = xp.arange(10.)
         mask = (x == 3)
@@ -9466,8 +9511,10 @@ class TestXP_Mean:
         ref = xp.asarray([])
         xp_assert_equal(res, ref)
 
+    @pytest.mark.filterwarnings("ignore:overflow encountered in reduce") # for dask
     def test_dtype(self, xp):
-        max = xp.finfo(xp.float32).max
+        xp_test = array_namespace(xp.asarray(1))
+        max = xp_test.finfo(xp.float32).max
         x_np = np.asarray([max, max], dtype=np.float32)
         x_xp = xp.asarray(x_np)
 
@@ -9575,7 +9622,7 @@ class TestXP_Var:
         xp_assert_equal(res, ref)
 
     def test_dtype(self, xp):
-        xp_test = array_namespace(xp) # dask.array needs finfo
+        xp_test = array_namespace(xp.asarray(1)) # dask.array needs finfo
         max = xp_test.finfo(xp.float32).max
         x_np = np.asarray([max, max/2], dtype=np.float32)
         x_xp = xp.asarray(x_np)
