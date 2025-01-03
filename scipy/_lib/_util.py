@@ -128,10 +128,6 @@ def _lazywhere(cond, arrays, f, fillvalue=None, f2=None):
     """
     xp = array_namespace(cond, *arrays)
 
-    if is_dask(xp) or is_jax(xp):
-        # TODO: verify for jax
-        return xp.where(cond, f(arrays[0], arrays[1]), f2(arrays[0], arrays[1]) if not fillvalue else fillvalue)
-
     if (f2 is fillvalue is None) or (f2 is not None and fillvalue is not None):
         raise ValueError("Exactly one of `fillvalue` or `f2` must be given.")
 
