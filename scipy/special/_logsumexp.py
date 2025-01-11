@@ -147,8 +147,6 @@ def _wrap_radians(x, xp=None):
     out = -((-x + math.pi) % (2 * math.pi) - math.pi)
     # preserve relative precision
     no_wrap = xp.abs(x) < xp.pi
-    # TODO: i think this is correct but double check
-    # out[no_wrap] = x[no_wrap]
     out = xp.where(no_wrap, x, out)
     return out
 
@@ -204,9 +202,6 @@ def _logsumexp(a, b, axis, return_sign, xp):
     a_max, i_max = _elements_and_indices_with_max_real(a, axis=axis, xp=xp)
 
     # for precision, these terms are separated out of the main sum.
-    # TODO: we shouldn't be mutating in-place here unless we make a copy
-    # dask arrays do not copy before this somehow
-    #a[i_max] = -xp.inf
     a = xp.where(i_max, -xp.asarray(xp.inf, dtype=a.dtype), a)
     i_max_dt = xp.astype(i_max, a.dtype)
     # This is an inefficient way of getting `m` because it is the sum of a sparse
