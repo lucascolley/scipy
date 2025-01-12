@@ -633,6 +633,12 @@ def _stats(input, labels=None, index=None, centered=False):
     # ensure input and labels match sizes
     input, labels = np.broadcast_arrays(input, labels)
 
+    # manually cast to numpy
+    # since libaries (e.g. dask) that implement __array_function__
+    # will not return a numpy array from broadcast_arrays
+    input = np.asarray(input)
+    labels = np.asarray(labels)
+
     if index is None:
         return single_group(input[labels > 0])
 
@@ -946,6 +952,12 @@ def _select(input, labels=None, index=None, find_min=False, find_max=False,
 
     # ensure input and labels match sizes
     input, labels = np.broadcast_arrays(input, labels)
+
+    # manually cast to numpy
+    # since libaries (e.g. dask) that implement __array_function__
+    # will not return a numpy array from broadcast_arrays
+    input = np.asarray(input)
+    labels = np.asarray(labels)
 
     if index is None:
         mask = (labels > 0)
