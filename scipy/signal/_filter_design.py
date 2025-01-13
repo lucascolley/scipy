@@ -728,6 +728,11 @@ def group_delay(system, w=512, whole=False, fs=2*pi):
 def _validate_sos(sos):
     """Helper to validate a SOS input"""
     sos = np.atleast_2d(sos)
+    # make sure this is a numpy array
+    # dask implements __array_function__ so
+    # atleast_2d will return a dask array
+    # (which is not what we want since we're calling into Cython afterwards)
+    sos = np.asarray(sos)
     if sos.ndim != 2:
         raise ValueError('sos array must be 2D')
     n_sections, m = sos.shape
