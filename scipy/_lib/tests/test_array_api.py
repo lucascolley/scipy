@@ -3,10 +3,11 @@ import pytest
 
 from scipy._lib._array_api import (
     _GLOBAL_CONFIG, array_namespace, _asarray, xp_copy, xp_assert_equal, 
-    is_dask, is_numpy, np_compat, xp_default_dtype
+    is_numpy, np_compat, xp_default_dtype
 )
 from scipy._lib import array_api_extra as xpx
 from scipy._lib._array_api_no_0d import xp_assert_equal as xp_assert_equal_no_0d
+from scipy.ndimage.tests.test_measurements import skip_xp_backends
 
 
 @pytest.mark.skipif(not _GLOBAL_CONFIG["SCIPY_ARRAY_API"],
@@ -59,10 +60,12 @@ class TestArrayAPI:
         with pytest.raises(TypeError, match=msg):
             xpx.atleast_nd("abc", ndim=0)
 
+    @skip_xp_backends(
+        "dask.array",
+        reason="raw dask.array namespace doesn't ignores copy=True in asarray"
+    )
     def test_copy(self, xp):
         for _xp in [xp, None]:
-            if is_dask(xp):
-                pytest.skip("raw dask.array namespace doesn't ignores copy=True in asarray")
             x = xp.asarray([1, 2, 3])
             y = xp_copy(x, xp=_xp)
             # with numpy we'd want to use np.shared_memory, but that's not specified

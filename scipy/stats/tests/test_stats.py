@@ -2854,6 +2854,7 @@ class TestSEM:
         assert_raises(ValueError, stats.sem, x, nan_policy='foobar')
 
 
+@skip_xp_backends("dask.array", reason="lazywhere doesn't work for dask.array")
 @skip_xp_backends('jax.numpy', reason="JAX can't do item assignment")
 class TestZmapZscore:
 
@@ -8194,8 +8195,7 @@ class TestCombinePvalues:
 
     methods = ["fisher", "pearson", "tippett", "stouffer", "mudholkar_george"]
 
-    @skip_xp_backends('dask.array', reason='no sorting in Dask',
-                      cpu_only=True, exceptions=['cupy', 'jax.numpy'])
+    @skip_xp_backends('dask.array', reason='no sorting in Dask')
     @pytest.mark.parametrize("variant", ["single", "all", "random"])
     @pytest.mark.parametrize("method", methods)
     def test_monotonicity(self, variant, method, xp):
