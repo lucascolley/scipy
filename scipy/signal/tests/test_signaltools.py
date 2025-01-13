@@ -4021,8 +4021,6 @@ def test_nonnumeric_dtypes(func, xp):
 #      (https://github.com/cupy/cupy/pull/8677)
 #  3. an issue with CuPy's __array__ not numpy-2.0 compatible
 @skip_xp_backends(cpu_only=True)
-# @skip_xp_backends("dask.array",
-#                   reason="sosfilt doesn't convert dask array to numpy before cython")
 @pytest.mark.parametrize('dt', ['float32', 'float64', 'complex64', 'complex128'])
 class TestSOSFilt:
 

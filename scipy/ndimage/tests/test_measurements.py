@@ -5,7 +5,6 @@ import numpy as np
 from numpy.testing import suppress_warnings
 
 from scipy._lib._array_api import (
-    is_jax,
     is_torch,
     array_namespace,
     xp_assert_equal,
@@ -366,10 +365,8 @@ def test_label_output_dtype(xp):
 
 
 @skip_xp_backends('dask.array', reason='Dask does not raise')
+@xfail_xp_backends('jax.numpy', reason='JAX does not raise')
 def test_label_output_wrong_size(xp):
-    if is_jax(xp):
-        pytest.xfail("JAX does not raise")
-
     data = xp.ones([5])
     for t in types:
         dtype = getattr(xp, t)
