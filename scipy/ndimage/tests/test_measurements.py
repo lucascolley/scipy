@@ -149,14 +149,14 @@ class Test_measurements_select:
 
 
 def test_label01(xp):
-    data = xp.ones([])
+    data = xp.ones(())
     out, n = ndimage.label(data)
     assert out == 1
     assert n == 1
 
 
 def test_label02(xp):
-    data = xp.zeros([])
+    data = xp.zeros(())
     out, n = ndimage.label(data)
     assert out == 0
     assert n == 0
