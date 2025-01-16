@@ -6,7 +6,6 @@ from numpy.testing import suppress_warnings
 
 from scipy._lib._array_api import (
     is_torch,
-    array_namespace,
     xp_assert_equal,
     xp_assert_close,
     assert_array_almost_equal,
@@ -531,11 +530,7 @@ def test_value_indices01(xp):
     true_keys = [1, 2, 4]
     assert list(vi.keys()) == true_keys
 
-    nnz_kwd = {'as_tuple': True} if is_torch(xp) else {}
-
-    truevi = {}
-    for k in true_keys:
-        truevi[k] = xp.nonzero(data == k, **nnz_kwd)
+    truevi = {k: xp.nonzero(data == k) for k in true_keys}
 
     vi = ndimage.value_indices(data, ignore_value=0)
     assert vi.keys() == truevi.keys()
@@ -560,16 +555,13 @@ def test_value_indices03(xp):
         a = xp.asarray((12*[1]+12*[2]+12*[3]), dtype=xp.int32)
         a = xp.reshape(a, shape)
 
-        nnz_kwd = {'as_tuple': True} if is_torch(xp) else {}
-
-        unique_values = array_namespace(a).unique_values
-        trueKeys = unique_values(a)
+        trueKeys = xp.unique_values(a)
         vi = ndimage.value_indices(a)
         # TODO: list(trueKeys) needs len of trueKeys
         # (which is unknown for dask since it is the result of an unique call)
         assert list(vi.keys()) == list(trueKeys)
         for k in [int(x) for x in trueKeys]:
-            trueNdx = xp.nonzero(a == k, **nnz_kwd)
+            trueNdx = xp.nonzero(a == k)
             assert len(vi[k]) == len(trueNdx)
             for vik, true_vik in zip(vi[k], trueNdx):
                 xp_assert_equal(vik, true_vik)
@@ -1589,8 +1581,7 @@ class TestWatershedIft:
     @skip_xp_backends("cupy", reason="no watershed_ift on CuPy"	)
     def test_watershed_ift09(self, xp):
         # Test large cost. See gh-19575
-        xp_test = array_namespace(xp.empty(0))  # dask.array needs iinfo
-        data = xp.asarray([[xp_test.iinfo(xp.uint16).max, 0],
+        data = xp.asarray([[xp.iinfo(xp.uint16).max, 0],
                            [0, 0]], dtype=xp.uint16)
         markers = xp.asarray([[1, 0],
                               [0, 0]], dtype=xp.int8)
