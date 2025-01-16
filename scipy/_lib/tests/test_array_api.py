@@ -2,12 +2,13 @@ import numpy as np
 import pytest
 
 from scipy._lib._array_api import (
-    _GLOBAL_CONFIG, array_namespace, _asarray, xp_copy, xp_assert_equal, 
-    is_numpy, np_compat, xp_default_dtype
+    _GLOBAL_CONFIG, array_namespace, _asarray, xp_copy, xp_assert_equal, is_numpy,
+    np_compat, xp_default_dtype
 )
 from scipy._lib import array_api_extra as xpx
 from scipy._lib._array_api_no_0d import xp_assert_equal as xp_assert_equal_no_0d
-from scipy.ndimage.tests.test_measurements import skip_xp_backends
+
+skip_xp_backends = pytest.mark.skip_xp_backends
 
 
 @pytest.mark.skipif(not _GLOBAL_CONFIG["SCIPY_ARRAY_API"],
