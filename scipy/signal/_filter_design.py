@@ -1791,7 +1791,10 @@ def normalize(b, a):
         raise ValueError("Denominator must have at least on nonzero element.")
 
     # Trim leading zeros in denominator, leave at least one.
-    den = np.trim_zeros(den, 'f')
+
+    # cast to numpy by hand to avoid libraries like dask
+    # trying to dispatch this function via NEP 18
+    den = np.trim_zeros(np.asarray(den), 'f')
 
     # Normalize transfer function
     num, den = num / den[0], den / den[0]

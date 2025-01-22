@@ -191,7 +191,7 @@ class TestNdimageFilters:
 
     @xfail_xp_backends('cupy', reason="Differs by a factor of two?")
     @skip_xp_backends("jax.numpy", reason="output array is read-only.")
-    @skip_xp_backends("dask.array", reason="wrong answer")
+    @xfail_xp_backends("dask.array", reason="wrong answer")
     def test_correlate01_overlap(self, xp):
         array = xp.reshape(xp.arange(256), (16, 16))
         weights = xp.asarray([2])
@@ -881,7 +881,7 @@ class TestNdimageFilters:
         assert_array_almost_equal(output1, output2)
 
     @skip_xp_backends("jax.numpy", reason="output array is read-only.")
-    @skip_xp_backends("dask.array", reason="wrong result")
+    @xfail_xp_backends("dask.array", reason="output keyword not handled properly")
     def test_gauss_memory_overlap(self, xp):
         input = xp.arange(100 * 100, dtype=xp.float32)
         input = xp.reshape(input, (100, 100))
@@ -1228,7 +1228,7 @@ class TestNdimageFilters:
         assert_array_almost_equal(t, output)
 
     @skip_xp_backends("jax.numpy", reason="output array is read-only.")
-    @skip_xp_backends("dask.array", reason="output array is read-only.")
+    @xfail_xp_backends("dask.array", reason="output array is read-only.")
     @pytest.mark.parametrize('dtype', types + complex_types)
     def test_prewitt02(self, dtype, xp):
         if is_torch(xp) and dtype in ("uint16", "uint32", "uint64"):
@@ -1838,9 +1838,7 @@ class TestNdimageFilters:
     @skip_xp_backends("jax.numpy",
         reason="assignment destination is read-only",
     )
-    @xfail_xp_backends("dask.array",
-        reason="wrong answer",
-    )
+    @xfail_xp_backends("dask.array", reason="wrong answer")
     def test_rank06_overlap(self, xp):
         array = xp.asarray([[3, 2, 5, 1, 4],
                             [5, 8, 3, 7, 1],
@@ -2647,7 +2645,7 @@ def test_gaussian_radius_invalid(xp):
 
 
 @skip_xp_backends("jax.numpy", reason="output array is read-only")
-@skip_xp_backends("dask.array", reason="wrong answer")
+@xfail_xp_backends("dask.array", reason="wrong answer")
 class TestThreading:
     def check_func_thread(self, n, fun, args, out):
         from threading import Thread

@@ -68,7 +68,7 @@ class TestArrayAPI:
 
     @skip_xp_backends(
         "dask.array",
-        reason="raw dask.array namespace doesn't ignores copy=True in asarray"
+        reason="raw dask.array namespace ignores copy=True in asarray"
     )
     def test_copy(self, xp):
         for _xp in [xp, None]:

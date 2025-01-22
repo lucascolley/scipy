@@ -4087,7 +4087,10 @@ def detrend(data: np.ndarray, axis: int = -1,
     else:
         dshape = data.shape
         N = dshape[axis]
-        bp = np.sort(np.unique(np.concatenate(np.atleast_1d(0, bp, N))))
+        # Manually cast to numpy to prevent
+        # NEP18 dispatching for libraries like dask
+        bp = np.asarray(np.concatenate(np.atleast_1d(0, bp, N)))
+        bp = np.sort(np.unique(bp))
         if np.any(bp > N):
             raise ValueError("Breakpoints must be less than length "
                              "of data along given axis.")

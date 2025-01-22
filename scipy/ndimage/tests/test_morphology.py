@@ -2315,7 +2315,6 @@ class TestNdimageMorphology:
                                               [5, 5, 3, 3, 1]]))
 
     @skip_xp_backends("jax.numpy", reason="output array is read-only.")
-    @skip_xp_backends("dask.array", reason="output array is read-only.")
     @xfail_xp_backends("cupy", reason="https://github.com/cupy/cupy/issues/8398")
     def test_grey_erosion01_overlap(self, xp):
 
@@ -2521,6 +2520,8 @@ class TestNdimageMorphology:
         tmp = ndimage.grey_opening(array, footprint=footprint,
                                    structure=structure)
         expected = array - tmp
+        # array created by xp.zeros is non-writeable for dask
+        # and jax
         output = xp.zeros(array.shape, dtype=array.dtype)
         ndimage.white_tophat(array, footprint=footprint,
                              structure=structure, output=output)
@@ -2574,6 +2575,8 @@ class TestNdimageMorphology:
         structure = xp.asarray(structure)
 
         # Check that type mismatch is properly handled
+        # This output array is read-only for dask and jax
+        # TODO: investigate why for dask?
         output = xp.empty_like(array, dtype=xp.float64)
         ndimage.white_tophat(array, structure=structure, output=output)
 
@@ -2588,6 +2591,7 @@ class TestNdimageMorphology:
         tmp = ndimage.grey_closing(array, footprint=footprint,
                                    structure=structure)
         expected = tmp - array
+        # This output array is read-only for dask and jax
         output = xp.zeros(array.shape, dtype=array.dtype)
         ndimage.black_tophat(array, footprint=footprint,
                              structure=structure, output=output)
