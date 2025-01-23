@@ -291,7 +291,6 @@ class TestConvolve:
             convolve(a, b)
 
 
-
 @skip_xp_backends(cpu_only=True, exceptions=['cupy'])
 class TestConvolve2d:
 
@@ -510,7 +509,6 @@ class TestConvolve2d:
         count = signal.convolve2d(a, [[1, 1]])
         fails = np.where(count > 1)
         assert fails[0].size == 0
-
 
 
 @skip_xp_backends(cpu_only=True, exceptions=['cupy'])
@@ -975,7 +973,7 @@ def gen_oa_shapes_eq(sizes):
 
 
 @skip_xp_backends("jax.numpy", reason="fails all around")
-@skip_xp_backends("dask.array", reason="wrong answer")
+@xfail_xp_backends("dask.array", reason="wrong answer")
 class TestOAConvolve:
     @pytest.mark.slow()
     @pytest.mark.parametrize('shape_a_0, shape_b_0',

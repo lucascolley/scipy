@@ -2510,7 +2510,7 @@ class TestNdimageMorphology:
         assert_array_almost_equal(output, expected)
 
     @skip_xp_backends("jax.numpy", reason="output array is read-only.")
-    @skip_xp_backends("dask.array", reason="output array is read-only.")
+    @skip_xp_backends("dask.array", reason="output kw doesn't make sense for dask")
     def test_white_tophat01(self, xp):
         array = xp.asarray([[3, 2, 5, 1, 4],
                             [7, 6, 9, 3, 5],
@@ -2520,8 +2520,6 @@ class TestNdimageMorphology:
         tmp = ndimage.grey_opening(array, footprint=footprint,
                                    structure=structure)
         expected = array - tmp
-        # array created by xp.zeros is non-writeable for dask
-        # and jax
         output = xp.zeros(array.shape, dtype=array.dtype)
         ndimage.white_tophat(array, footprint=footprint,
                              structure=structure, output=output)
@@ -2566,7 +2564,7 @@ class TestNdimageMorphology:
         xp_assert_equal(output, expected)
 
     @skip_xp_backends("jax.numpy", reason="output array is read-only.")
-    @skip_xp_backends("dask.array", reason="output array is read-only.")
+    @skip_xp_backends("dask.array", reason="output kw doesn't make sense for dask")
     def test_white_tophat04(self, xp):
         array = np.eye(5, dtype=bool)
         structure = np.ones((3, 3), dtype=bool)
@@ -2575,13 +2573,11 @@ class TestNdimageMorphology:
         structure = xp.asarray(structure)
 
         # Check that type mismatch is properly handled
-        # This output array is read-only for dask and jax
-        # TODO: investigate why for dask?
         output = xp.empty_like(array, dtype=xp.float64)
         ndimage.white_tophat(array, structure=structure, output=output)
 
     @skip_xp_backends("jax.numpy", reason="output array is read-only.")
-    @skip_xp_backends("dask.array", reason="output array is read-only.")
+    @skip_xp_backends("dask.array", reason="output kw doesn't make sense for dask")
     def test_black_tophat01(self, xp):
         array = xp.asarray([[3, 2, 5, 1, 4],
                             [7, 6, 9, 3, 5],
@@ -2636,7 +2632,7 @@ class TestNdimageMorphology:
         xp_assert_equal(output, expected)
 
     @skip_xp_backends("jax.numpy", reason="output array is read-only.")
-    @skip_xp_backends("dask.array", reason="output array is read-only.")
+    @skip_xp_backends("dask.array", reason="output kw doesn't make sense for dask")
     def test_black_tophat04(self, xp):
         array = xp.asarray(np.eye(5, dtype=bool))
         structure = xp.asarray(np.ones((3, 3), dtype=bool))
