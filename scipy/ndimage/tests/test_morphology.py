@@ -2587,7 +2587,6 @@ class TestNdimageMorphology:
         tmp = ndimage.grey_closing(array, footprint=footprint,
                                    structure=structure)
         expected = tmp - array
-        # This output array is read-only for dask and jax
         output = xp.zeros(array.shape, dtype=array.dtype)
         ndimage.black_tophat(array, footprint=footprint,
                              structure=structure, output=output)
