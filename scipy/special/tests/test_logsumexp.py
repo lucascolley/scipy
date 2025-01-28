@@ -26,9 +26,6 @@ def test_wrap_radians(xp):
 
 
 class TestLogSumExp:
-    # numpy warning filters don't work for dask
-    # (also we should not expect the numpy warning filter to work for any Array API
-    # library)
     @pytest.mark.filterwarnings("ignore:divide by zero encountered in log")
     def test_logsumexp(self, xp):
         # Test with zero-size array
