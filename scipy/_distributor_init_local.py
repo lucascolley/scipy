@@ -8,7 +8,7 @@ if os.name == 'nt':
     # check for `.pixi\envs\default\Library\bin\openblas.dll`
     libs_path = os.path.abspath(os.path.join(
         os.path.dirname(__file__),
-        '..', '.pixi', 'envs', 'default', 'Library', 'bin'
+        '..', '..', '..', '..', '..', '.pixi', 'envs', 'default', 'Library', 'bin'
     ))
     if os.path.isdir(libs_path):
         try:
