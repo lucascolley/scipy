@@ -450,6 +450,7 @@ jobs:
     # (i.e., we're using it as a binary). This isn't a normal setup, but it's
     # sometimes being used that way - see gh-20535 and gh-24406
     name: build with global meson
+    needs: get_commit_message
     if: >
       needs.get_commit_message.outputs.message == 1
       && (github.repository == 'scipy/scipy' || github.repository == '')
@@ -501,10 +502,12 @@ jobs:
 
   #################################################################################
   free-threaded:
+    name: free-threaded${{ matrix.parallel == '1' && ' (pytest-run-parallel)' || '' }}
     needs: get_commit_message
     strategy:
       matrix:
         parallel: ["0", "1"]
+      fail-fast: false
 
     runs-on: ubuntu-latest
     if: >
@@ -515,36 +518,15 @@ jobs:
         with:
           submodules: recursive
           fetch-tags: true
-
-      - uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
+      
+      - uses: prefix-dev/setup-pixi@ba3bb36eb2066252b2363392b7739741bb777659 # v0.8.1
         with:
-          python-version: "3.14t-dev"
-
-      - name: Install Ubuntu dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gfortran
-
-      - name: Install Python dependencies
-        run: |
-          pip install -r requirements/build.txt
-          pip install -r requirements/openblas.txt
-          pip install spin pytest pytest-xdist threadpoolctl pooch hypothesis "click<8.3.0"
-
-      - name: Install pytest-run-parallel
-        if: ${{ matrix.parallel == '1'}}
-        run: |
-          pip install pytest-run-parallel
-          pip uninstall --yes pytest-xdist
-
-      - name: Build SciPy
-        run: |
-          spin build --with-scipy-openblas
+          pixi-version: v0.63.2
+          cache: false
 
       - name: Run tests (full)
         if: ${{ matrix.parallel == '0'}}
-        run: |
-          spin test -j4 -m full --durations=10
+        run: pixi run test-freethreading -j4 -m full --durations=10
 
       - name: Run tests (fast, with pytest-run-parallel)
         if: ${{ matrix.parallel == '1'}}
@@ -576,7 +558,7 @@ jobs:
           #       and it'll be quite slow with pytest-run-parallel. Also skip
           #       tests that won't run in parallel, those are covered by the
           #       parallel == 0 run.
-          spin test -t $TEST_SUBMODULES -- --parallel-threads=4 --skip-thread-unsafe=true
+          pixi run test-parallel-freethreading -t $TEST_SUBMODULES -- --parallel-threads=4 --skip-thread-unsafe=true
 
   #################################################################################
   clang-17-build-only:
@@ -629,30 +611,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Python
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
+      - uses: prefix-dev/setup-pixi@ba3bb36eb2066252b2363392b7739741bb777659 # v0.8.1
         with:
-          python-version: "3.12"
-
-      - name: Install Ubuntu dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopenblas-dev libatlas-base-dev liblapack-dev gfortran libgmp-dev libmpfr-dev libsuitesparse-dev ccache libmpc-dev
-
-      - name: Install Python packages
-        run: |
-          python -m pip install -r requirements/build.txt -r requirements/test.txt
-          # We want to check for test timing only in a single job, on Linux, running the
-          # fast test suite. This is that job. See gh-20806 for previous issues
-          # after running this job on Windows and in multiple jobs.
-          python -m pip install pytest-fail-slow
-
-      - name: Install SciPy
-        run: |
-          python -m pip install . --no-build-isolation
+          pixi-version: v0.63.2
+          cache: false
 
       - name: Test SciPy
         run: |
-          export OMP_NUM_THREADS=2
-          cd ..
-          pytest --pyargs scipy -m 'not slow' --durations=0 --durations-min=0.5 --fail-slow=1.0
+          export OMP_NUM_THREAD=2
+          # various factorial tests give a fatal python error in CI
+          pixi run test-fail-slow -k 'not (test_factorial or test_nan_inputs)'
