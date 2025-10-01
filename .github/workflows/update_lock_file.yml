@@ -22,10 +22,8 @@ jobs:
           run-install: false
           pixi-version: v0.55.0
           cache: false
-          manifest-path: .github/workflows/pixi.toml
 
       - name: Update lock file
-        working-directory: .github/workflows
         run: |
           set -euo pipefail
           pixi update --json --no-install | pixi exec pixi-diff-to-markdown >> diff.md
@@ -36,8 +34,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "MAINT: update lock file"
           title: "MAINT: update lock file"
-          body-path: ".github/workflows/diff.md"
+          body-path: "diff.md"
           branch: lock-file-update
           base: main
           delete-branch: true
-          add-paths: .github/workflows/pixi.lock
+          add-paths: pixi.lock
