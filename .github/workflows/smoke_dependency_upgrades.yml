@@ -49,16 +49,14 @@ jobs:
             let result;
             if (process.env.UPGRADE_SUCCESS === "true") {
               bodyContent = fs.readFileSync('.github/workflows/diff.md', 'utf8');
-              codeLang = 'md';
               result = 'success';
             } else {
               bodyContent = fs.readFileSync('.github/workflows/failure.txt', 'utf8');
-              codeLang = 'txt';
               result = 'failure';
             }
 
             const issueTitle = "MAINT: dependency upgrade tracker";
-            const newBody = `### Dependency upgrade report\n\nResults of latest run at ${new Date().toISOString()}: ${result}\n\n<details>\n\n\`\`\`${codeLang}\n${bodyContent}\n\`\`\`\n\n</details>`;
+            const newBody = `### Dependency upgrade report\n\nResults of latest run at ${new Date().toISOString()}: ${result}\n\n<details>\n\n${bodyContent}\n\n</details>`;
 
             const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
