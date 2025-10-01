@@ -48,11 +48,11 @@ jobs:
             let codeLang;
             let result;
             if (process.env.UPGRADE_SUCCESS === "true") {
-              bodyContent = fs.readFileSync('diff.md', 'utf8');
+              bodyContent = fs.readFileSync('.github/workflows/diff.md', 'utf8');
               codeLang = 'md';
               result = 'success';
             } else {
-              bodyContent = fs.readFileSync('failure.txt', 'utf8');
+              bodyContent = fs.readFileSync('.github/workflows/failure.txt', 'utf8');
               codeLang = 'txt';
               result = 'failure';
             }
