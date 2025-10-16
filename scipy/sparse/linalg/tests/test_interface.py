@@ -224,33 +224,36 @@ class TestDotTests:
     """
     class OperatorArgs(NamedTuple):
         """
-        shape: shape of the operator
+        shape: (core) shape of the operator
         op_dtype: dtype of the operator
         data_dtype: real dtype corresponding to op_dtype for data generation
         complex: the operator has a complex dtype
+        batch_shape: shape of the batch
         """
         shape: tuple[int, ...]
         op_dtype: str
         data_dtype: str
         complex: bool
+        batch_shape: tuple[int, ...]
 
     real_square_args: OperatorArgs = OperatorArgs(
-        (12, 12), "float64", "float64", False
+        (12, 12), "float64", "float64", False, (4,)
     )
+    # TODO: batch shape (0,)
     integer_square_args: OperatorArgs = OperatorArgs(
-        (9, 9), "int32", "float32", False
+        (9, 9), "int32", "float32", False, ()
     )
     complex_square_args: OperatorArgs = OperatorArgs(
-        (13, 13), "complex64", "float32", True
+        (13, 13), "complex64", "float32", True, ()
     )
     real_overdetermined_args: OperatorArgs = OperatorArgs(
-        (17, 11), "float64", "float64", False
+        (17, 11), "float64", "float64", False, ()
     )
     complex_overdetermined_args: OperatorArgs = OperatorArgs(
-        (17, 11), "complex128", "float64", True
+        (17, 11), "complex128", "float64", True, ()
     )
     real_underdetermined_args: OperatorArgs = OperatorArgs(
-        (5, 9), "float64", "float64", False
+        (5, 9), "float64", "float64", False, ()
     )
 
     square_args_list: list[OperatorArgs] = [
@@ -285,11 +288,18 @@ class TestDotTests:
         """
         rng = np.random.default_rng(42)
 
-        u = rng.standard_normal(op.shape[-1], dtype=data_dtype)
-        v = rng.standard_normal(op.shape[-2], dtype=data_dtype)
+        dtype = np.dtype(data_dtype)
+        u = rng.standard_normal(op.shape[-1], dtype=dtype)
+        v = rng.standard_normal(op.shape[-2], dtype=dtype)
         if complex_data:
-            u = u + (1j * rng.standard_normal(op.shape[-1], dtype=data_dtype))
-            v = v + (1j * rng.standard_normal(op.shape[-2], dtype=data_dtype))
+            u = u + (1j * rng.standard_normal(op.shape[-1], dtype=dtype))
+            v = v + (1j * rng.standard_normal(op.shape[-2], dtype=dtype))
+        
+        # TODO: handle empty batches
+        if batch_shape := op.shape[:-2]:
+            batch_scale = rng.standard_normal((*batch_shape, 1), dtype=dtype)
+            u = batch_scale * u
+            v = batch_scale * v
 
         op_u = op.matvec(u)
         opH_v = op.rmatvec(v)
@@ -336,11 +346,18 @@ class TestDotTests:
         rng = np.random.default_rng(42)
         k = rng.integers(2, 100)
 
-        U = rng.standard_normal(size=(op.shape[-1], k), dtype=data_dtype)
-        V = rng.standard_normal(size=(op.shape[-2], k), dtype=data_dtype)
+        dtype = np.dtype(data_dtype)
+        U = rng.standard_normal(size=(op.shape[-1], k), dtype=dtype)
+        V = rng.standard_normal(size=(op.shape[-2], k), dtype=dtype)
         if complex_data:
-            U = U + (1j * rng.standard_normal(size=(op.shape[-1], k), dtype=data_dtype))
-            V = V + (1j * rng.standard_normal(size=(op.shape[-2], k), dtype=data_dtype))
+            U = U + (1j * rng.standard_normal(size=(op.shape[-1], k), dtype=dtype))
+            V = V + (1j * rng.standard_normal(size=(op.shape[-2], k), dtype=dtype))
+
+        # TODO: handle empty batches
+        if batch_shape := op.shape[:-2]:
+            batch_scale = rng.standard_normal((*batch_shape, 1, 1), dtype=dtype)
+            U = batch_scale * U
+            V = batch_scale * V
 
         op_U = op.matmat(U)
         opH_V = op.rmatmat(V)
@@ -355,8 +372,8 @@ class TestDotTests:
             assert_allclose(op_U, op.dot(U))
             assert_allclose(opH_V, op.H.dot(V))
 
-        op_U_H = np.conj(op_U).T
-        UH = np.conj(U).T
+        op_U_H = np.conj(op_U).mT
+        UH = np.conj(U).mT
 
         op_U_H_V = np.matmul(op_U_H, V)
         UH_opH_V = np.matmul(UH, opH_V)
@@ -365,18 +382,21 @@ class TestDotTests:
         assert_allclose(op_U_H_V, UH_opH_V, rtol=rtol)
 
     @pytest.mark.parametrize("args", square_args_list)
-    def test_identity_square(self, args):
+    def test_identity_square(self, args: OperatorArgs):
         """Simple identity operator on square matrices"""
         def identity(x):
             return x
-
+        
+        shape = args.batch_shape + args.shape
         op = interface.LinearOperator(
-            shape=args.shape, dtype=args.op_dtype,
-            matvec=identity, rmatvec=identity
+            shape=shape, dtype=args.op_dtype,
+            matvec=identity, rmatvec=identity,
         )
 
         self.check_matvec(op, data_dtype=args.data_dtype, complex_data=args.complex)
         self.check_matmat(op, data_dtype=args.data_dtype, complex_data=args.complex)
+    
+    # TODO: batching with multiple LHS
     
     @pytest.mark.parametrize("args", all_args_list)
     def test_identity_nonsquare(self, args):
