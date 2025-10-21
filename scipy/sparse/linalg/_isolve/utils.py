@@ -3,7 +3,7 @@ __docformat__ = "restructuredtext en"
 __all__ = []
 
 
-from numpy import asanyarray, asarray, array, zeros
+import numpy as np
 
 from scipy.sparse.linalg._interface import aslinearoperator, LinearOperator, \
      IdentityOperator
@@ -35,7 +35,7 @@ def make_system(A, M, x0, b):
     ----------
     A : LinearOperator
         sparse or dense matrix (or any valid input to aslinearoperator)
-    M : {LinearOperator, Nones}
+    M : {LinearOperator, None}
         preconditioner
         sparse or dense matrix (or any valid input to aslinearoperator)
     x0 : {array_like, str, None}
@@ -61,14 +61,15 @@ def make_system(A, M, x0, b):
     A_ = A
     A = aslinearoperator(A)
 
-    if A.shape[0] != A.shape[1]:
-        raise ValueError(f'expected square matrix, but got shape={(A.shape,)}')
+    if (N := A.shape[-2]) != A.shape[-1]:
+        raise ValueError(f'expected square matrix or stack of square matrices, but got shape={(A.shape,)}')
 
-    N = A.shape[0]
+    b = np.asanyarray(b)
 
-    b = asanyarray(b)
+    column_vector = b.ndim == 2 and b.shape[-2:] == (N, 1) # maintain column vector backwards-compatibility in 2-D case
+    row_vector = b.shape[-1] == N # otherwise treat as a row-vector
 
-    if not (b.shape == (N,1) or b.shape == (N,)):
+    if not (column_vector or row_vector):
         raise ValueError(f'shapes of A {A.shape} and b {b.shape} are '
                          'incompatible')
 
@@ -81,8 +82,9 @@ def make_system(A, M, x0, b):
         xtype = A.matvec(b).dtype.char
     xtype = coerce(xtype, b.dtype.char)
 
-    b = asarray(b,dtype=xtype)  # make b the same type as x
-    b = b.ravel()
+    b = np.asarray(b, dtype=xtype)  # make b the same type as x
+    if column_vector:
+        b = np.ravel(b)
 
     # process preconditioner
     if M is None:
@@ -106,16 +108,21 @@ def make_system(A, M, x0, b):
 
     # set initial guess
     if x0 is None:
-        x = zeros(N, dtype=xtype)
+        x = np.zeros((*M.shape[:-2], N), dtype=xtype)
     elif isinstance(x0, str):
         if x0 == 'Mb':  # use nonzero initial guess ``M @ b``
             bCopy = b.copy()
             x = M.matvec(bCopy)
     else:
-        x = array(x0, dtype=xtype)
-        if not (x.shape == (N, 1) or x.shape == (N,)):
+        x = np.array(x0, dtype=xtype)
+        
+        column_vector = x.ndim == 2 and x.shape[-2:] == (N, 1) # maintain column vector backwards-compatibility in 2-D case
+        row_vector = x.shape[-1] == N # otherwise treat as a row-vector
+        
+        if not (row_vector or column_vector):
             raise ValueError(f'shapes of A {A.shape} and '
                              f'x0 {x.shape} are incompatible')
-        x = x.ravel()
+        if column_vector:
+            x = np.ravel(x)
 
     return A, M, x, b

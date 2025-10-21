@@ -1,4 +1,6 @@
 import warnings
+import functools
+
 import numpy as np
 from scipy.sparse.linalg._interface import LinearOperator
 from .utils import make_system
@@ -16,7 +18,7 @@ def _get_atol_rtol(name, b_norm, atol=0., rtol=1e-5):
                "if set, `atol` must be a real, non-negative number.")
         raise ValueError(msg)
 
-    atol = max(float(atol), float(rtol) * float(b_norm))
+    atol = max(float(atol), float(rtol) * np.max(b_norm))
 
     return atol, rtol
 
@@ -377,19 +379,17 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
     True
     """
     A, M, x, b = make_system(A, M, x0, b)
-    bnrm2 = np.linalg.norm(b)
+    bnrm2 = np.linalg.norm(b, axis=-1)
 
     atol, _ = _get_atol_rtol('cg', bnrm2, atol, rtol)
 
-    if bnrm2 == 0:
+    if not np.any(bnrm2):
         return b, 0
 
-    n = len(b)
-
     if maxiter is None:
-        maxiter = n*10
+        maxiter = b.shape[-1] * 10
 
-    dotprod = np.vdot if np.iscomplexobj(x) else np.dot
+    dotprod = np.vdot if np.iscomplexobj(x) else functools.partial(np.vecdot, axis=-1)
 
     matvec = A.matvec
     psolve = M.matvec
@@ -399,14 +399,14 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
     rho_prev, p = None, None
 
     for iteration in range(maxiter):
-        if np.linalg.norm(r) < atol:  # Are we done?
+        if np.all(np.linalg.norm(r, axis=-1) < atol):  # Are we done?
             return x, 0
 
         z = psolve(r)
         rho_cur = dotprod(r, z)
         if iteration > 0:
             beta = rho_cur / rho_prev
-            p *= beta
+            p = (beta * p.T).T 
             p += z
         else:  # First spin
             p = np.empty_like(r)
@@ -414,8 +414,8 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
 
         q = matvec(p)
         alpha = rho_cur / dotprod(p, q)
-        x += alpha*p
-        r -= alpha*q
+        x += (alpha * p.T).T
+        r -= (alpha * q.T).T
         rho_prev = rho_cur
 
         if callback:
