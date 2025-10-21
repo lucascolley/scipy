@@ -1,8 +1,12 @@
 import warnings
+import functools
+
 import numpy as np
 from scipy.sparse.linalg._interface import LinearOperator
 from .utils import make_system
 from scipy.linalg import get_lapack_funcs
+
+from scipy._lib import array_api_extra as xpx
 
 __all__ = ['bicg', 'bicgstab', 'cg', 'cgs', 'gmres', 'qmr']
 
@@ -16,7 +20,7 @@ def _get_atol_rtol(name, b_norm, atol=0., rtol=1e-5):
                "if set, `atol` must be a real, non-negative number.")
         raise ValueError(msg)
 
-    atol = max(float(atol), float(rtol) * float(b_norm))
+    atol = max(float(atol), float(rtol) * np.max(b_norm))
 
     return atol, rtol
 
@@ -377,19 +381,18 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
     True
     """
     A, M, x, b = make_system(A, M, x0, b)
-    bnrm2 = np.linalg.norm(b)
+    batched = A.ndim > 2
+    bnrm2 = np.linalg.norm(b, axis=-1)
 
     atol, _ = _get_atol_rtol('cg', bnrm2, atol, rtol)
 
-    if bnrm2 == 0:
+    if not np.any(bnrm2):
         return b, 0
 
-    n = len(b)
-
     if maxiter is None:
-        maxiter = n*10
+        maxiter = b.shape[-1] * 10
 
-    dotprod = np.vdot if np.iscomplexobj(x) else np.dot
+    dotprod = np.vdot if np.iscomplexobj(x) else functools.partial(np.vecdot, axis=-1)
 
     matvec = A.matvec
     psolve = M.matvec
@@ -399,13 +402,22 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
     rho_prev, p = None, None
 
     for iteration in range(maxiter):
-        if np.linalg.norm(r) < atol:  # Are we done?
+        converged = np.linalg.norm(r, axis=-1) < atol
+        if np.all(converged):
             return x, 0
 
         z = psolve(r)
         rho_cur = dotprod(r, z)
+
         if iteration > 0:
-            beta = rho_cur / rho_prev
+            if not batched:
+                beta = rho_cur / rho_prev
+            else:
+                beta = np.zeros_like(rho_cur, dtype=float)
+                mask = ~converged
+                beta[mask] = rho_cur[mask] / rho_prev[mask]
+            beta = beta[..., np.newaxis]
+
             p *= beta
             p += z
         else:  # First spin
@@ -413,7 +425,16 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
             p[:] = z[:]
 
         q = matvec(p)
-        alpha = rho_cur / dotprod(p, q)
+        c = dotprod(p, q)
+
+        if not batched:
+            alpha = rho_cur / c
+        else:
+            alpha = np.zeros_like(rho_cur, dtype=float)
+            mask = ~converged
+            alpha[mask] = rho_cur[mask] / c[mask]
+        alpha = alpha[..., np.newaxis]
+
         x += alpha*p
         r -= alpha*q
         rho_prev = rho_cur
