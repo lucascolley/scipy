@@ -6,6 +6,8 @@ from scipy.sparse.linalg._interface import LinearOperator
 from .utils import make_system
 from scipy.linalg import get_lapack_funcs
 
+from scipy._lib import array_api_extra as xpx
+
 __all__ = ['bicg', 'bicgstab', 'cg', 'cgs', 'gmres', 'qmr']
 
 
@@ -399,23 +401,43 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
     rho_prev, p = None, None
 
     for iteration in range(maxiter):
-        if np.all(np.linalg.norm(r, axis=-1) < atol):  # Are we done?
+        converged = np.linalg.norm(r, axis=-1) < atol
+        if np.all(converged):
             return x, 0
 
         z = psolve(r)
         rho_cur = dotprod(r, z)
+
         if iteration > 0:
-            beta = rho_cur / rho_prev
-            p = (beta * p.T).T 
+            beta = xpx.apply_where(
+                ~converged,
+                (rho_cur, rho_prev),
+                lambda cur, prev: cur / prev,
+                fill_value=0.0,
+                xp=np
+            )
+            beta = np.expand_dims(beta, axis=-1)
+
+            p *= beta
             p += z
         else:  # First spin
             p = np.empty_like(r)
             p[:] = z[:]
 
         q = matvec(p)
-        alpha = rho_cur / dotprod(p, q)
-        x += (alpha * p.T).T
-        r -= (alpha * q.T).T
+        c = dotprod(p, q)
+
+        alpha = xpx.apply_where(
+            ~converged,
+            (rho_cur, c),
+            lambda rc, c: rc / c,
+            fill_value=0.0,
+            xp=np
+        )
+        alpha = np.expand_dims(alpha, axis=-1)
+
+        x += alpha*p
+        r -= alpha*q
         rho_prev = rho_cur
 
         if callback:
