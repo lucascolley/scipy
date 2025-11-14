@@ -26,7 +26,7 @@ solve-group = "default"
 
 [environments.ipython]
 # tasks: ipython
-features = ["run-deps", "test-deps", "ipython"]
+features = ["run-deps", "test-deps", "ipython-dep", "ipython-task"]
 solve-group = "default"
 
 [environments.build-debug]
@@ -77,8 +77,8 @@ features = ["run-deps", "test-deps", "mkl", "torch-cpu", "torch-cpu-tasks"]
 solve-group = "array-api-cpu"
 
 [environments.array-api-cpu]
-# tasks: test-cpu
-features = ["run-deps", "test-deps", "test-cpu", "mkl", "array_api_strict", "dask", "jax-cpu", "marray", "torch-cpu"]
+# tasks: test-cpu, ipython-cpu
+features = ["run-deps", "test-deps", "test-cpu", "mkl", "array_api_strict", "dask", "jax-cpu", "marray", "torch-cpu", "ipython-dep", "ipython-cpu-task"]
 solve-group = "array-api-cpu"
 
 [environments.build-cuda]
@@ -221,12 +221,18 @@ description = "Build the documentation"
 
 ### IPython ###
 
-[feature.ipython.dependencies]
+[feature.ipython-dep.dependencies]
 ipython = "*"
 
-[feature.ipython.tasks.ipython]
+[feature.ipython-task.tasks.ipython]
 cmd = "spin ipython --no-build"
 depends-on = "build"
+description = "Launch IPython"
+
+[feature.ipython-cpu-task.tasks.ipython-cpu]
+cmd = "spin ipython --build-dir=build-cpu --no-build"
+depends-on = "build-cpu"
+env.SCIPY_ARRAY_API = "1"
 description = "Launch IPython"
 
 

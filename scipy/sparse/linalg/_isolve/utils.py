@@ -5,28 +5,13 @@ __all__ = []
 
 import numpy as np
 
-from scipy.sparse.linalg._interface import aslinearoperator, LinearOperator, \
-     IdentityOperator
-
-_coerce_rules = {('f','f'):'f', ('f','d'):'d', ('f','F'):'F',
-                 ('f','D'):'D', ('d','f'):'d', ('d','d'):'d',
-                 ('d','F'):'D', ('d','D'):'D', ('F','f'):'F',
-                 ('F','d'):'D', ('F','F'):'F', ('F','D'):'D',
-                 ('D','f'):'D', ('D','d'):'D', ('D','F'):'D',
-                 ('D','D'):'D'}
-
-
-def coerce(x,y):
-    if x not in 'fdFD':
-        x = 'd'
-    if y not in 'fdFD':
-        y = 'd'
-    return _coerce_rules[x,y]
-
+from scipy.sparse.linalg._interface import (
+    _xp_aslinearoperator, LinearOperator, IdentityOperator
+)
+from scipy._lib._array_api import array_namespace, is_lazy_array, xp_copy, xp_ravel, xp_result_type, _asarray
 
 def id(x):
     return x
-
 
 def make_system(A, M, x0, b):
     """Make a linear system Ax=b
@@ -47,7 +32,7 @@ def make_system(A, M, x0, b):
 
     Returns
     -------
-    (A, M, x, b)
+    (A, M, x, b, xp)
         A : LinearOperator
             matrix of the linear system
         M : LinearOperator
@@ -56,35 +41,44 @@ def make_system(A, M, x0, b):
             initial guess
         b : rank 1 ndarray
             right hand side
+        xp : compatible array namespace
 
     """
     A_ = A
-    A = aslinearoperator(A)
-
-    if (N := A.shape[-2]) != A.shape[-1]:
+    A, xp = _xp_aslinearoperator(A)
+    lazy = is_lazy_array(xp.empty(0))
+    
+    N = A.shape[-2]
+    if not lazy and N != A.shape[-1]:
         raise ValueError(f'expected square matrix or stack of square matrices, but got shape={(A.shape,)}')
 
-    b = np.asanyarray(b)
+    xp_b = array_namespace(b)
+    if xp_b != xp:
+        msg = f"Mismatched array namespaces. Namespace for A is {xp}, namespace for b is {xp_b}"
+        raise TypeError(msg)
+    
+    b = _asarray(b, subok=True, xp=xp)
 
-    column_vector = b.ndim == 2 and b.shape[-2:] == (N, 1) # maintain column vector backwards-compatibility in 2-D case
+    column_vector = not lazy and b.ndim == 2 and b.shape[-2:] == (N, 1) # maintain column vector backwards-compatibility in 2-D case
     row_vector = b.shape[-1] == N # otherwise treat as a row-vector
 
-    if not (column_vector or row_vector):
+    if not lazy and not (column_vector or row_vector):
         raise ValueError(f'shapes of A {A.shape} and b {b.shape} are '
                          'incompatible')
 
-    if b.dtype.char not in 'fdFD':
-        b = b.astype('d')  # upcast non-FP types to double
+    if not xp.isdtype(b.dtype, ("real floating", "complex floating")):
+        b = xp.astype(b, xp.float64)  # upcast non-FP types to float64
 
-    if hasattr(A,'dtype'):
-        xtype = A.dtype.char
+    if hasattr(A, 'dtype'):
+        x_dtype = A.dtype
     else:
-        xtype = A.matvec(b).dtype.char
-    xtype = coerce(xtype, b.dtype.char)
+        x_dtype = A.matvec(b).dtype
+    # XXX: does this match the previous coercion?
+    x_dtype = xp_result_type(x_dtype, b.dtype, force_floating=True, xp=xp)
 
-    b = np.asarray(b, dtype=xtype)  # make b the same type as x
+    b = xp.astype(b, x_dtype)  # make b the same type as x
     if column_vector:
-        b = np.ravel(b)
+        b = xp_ravel(b)
 
     # process preconditioner
     if M is None:
@@ -97,24 +91,28 @@ def make_system(A, M, x0, b):
         else:
             rpsolve = id
         if psolve is id and rpsolve is id:
-            M = IdentityOperator(shape=A.shape, dtype=A.dtype)
+            M = IdentityOperator(shape=A.shape, dtype=A.dtype, xp=xp)
         else:
             M = LinearOperator(A.shape, matvec=psolve, rmatvec=rpsolve,
-                               dtype=A.dtype)
+                               dtype=A.dtype, xp=xp)
     else:
-        M = aslinearoperator(M)
+        M, xp_M = _xp_aslinearoperator(M)
+        if xp_M != xp:
+            msg = f"Mismatched array namespaces. Namespace for A is {xp}, namespace for M is {xp_M}"
+            raise TypeError(msg)
         if A.shape != M.shape:
             raise ValueError('matrix and preconditioner have different shapes')
 
     # set initial guess
     if x0 is None:
-        x = np.zeros((*M.shape[:-2], N), dtype=xtype)
+        x = xp.zeros((*M.shape[:-2], N), dtype=x_dtype)
+    # XXX: proper error handling for `x0` of type `str` but not equal to `'Mb'`?
     elif isinstance(x0, str):
         if x0 == 'Mb':  # use nonzero initial guess ``M @ b``
-            bCopy = b.copy()
+            bCopy = xp_copy(b)
             x = M.matvec(bCopy)
     else:
-        x = np.array(x0, dtype=xtype)
+        x = xp.asarray(x0, dtype=x_dtype)
         
         column_vector = x.ndim == 2 and x.shape[-2:] == (N, 1) # maintain column vector backwards-compatibility in 2-D case
         row_vector = x.shape[-1] == N # otherwise treat as a row-vector
@@ -123,6 +121,6 @@ def make_system(A, M, x0, b):
             raise ValueError(f'shapes of A {A.shape} and '
                              f'x0 {x.shape} are incompatible')
         if column_vector:
-            x = np.ravel(x)
+            x = xp_ravel(x)
 
-    return A, M, x, b
+    return A, M, x, b, xp
