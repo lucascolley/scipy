@@ -2,6 +2,7 @@ name: Update Pixi lock file
 
 permissions:
   pull-requests: write
+  contents: read # to fetch code (actions/checkout)
 
 on:
   workflow_dispatch:
