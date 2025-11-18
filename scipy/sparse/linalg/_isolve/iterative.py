@@ -1,13 +1,18 @@
 import warnings
+import functools
+
 import numpy as np
 from scipy.sparse.linalg._interface import LinearOperator
 from .utils import make_system
 from scipy.linalg import get_lapack_funcs
 
+from scipy._lib import array_api_extra as xpx
+from scipy._lib._array_api import xp_copy, xp_vector_norm
+
 __all__ = ['bicg', 'bicgstab', 'cg', 'cgs', 'gmres', 'qmr']
 
 
-def _get_atol_rtol(name, b_norm, atol=0., rtol=1e-5):
+def _get_atol_rtol(name, b_norm, atol=0., rtol=1e-5, xp=np):
     """
     A helper function to handle tolerance normalization
     """
@@ -16,7 +21,7 @@ def _get_atol_rtol(name, b_norm, atol=0., rtol=1e-5):
                "if set, `atol` must be a real, non-negative number.")
         raise ValueError(msg)
 
-    atol = max(float(atol), float(rtol) * float(b_norm))
+    atol = xp.max(xp.stack((xp.asarray(float(atol)), float(rtol) * xp.min(b_norm))))
 
     return atol, rtol
 
@@ -376,44 +381,62 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
     >>> np.allclose(A.dot(x), b)
     True
     """
-    A, M, x, b = make_system(A, M, x0, b)
-    bnrm2 = np.linalg.norm(b)
+    A, M, x, b, xp = make_system(A, M, x0, b)
+    bnrm2 = xp_vector_norm(b, axis=-1)
 
-    atol, _ = _get_atol_rtol('cg', bnrm2, atol, rtol)
+    atol, _ = _get_atol_rtol('cg', bnrm2, atol, rtol, xp=xp)
 
-    if bnrm2 == 0:
+    if not xp.any(bnrm2):
         return b, 0
 
-    n = len(b)
-
     if maxiter is None:
-        maxiter = n*10
+        maxiter = b.shape[-1] * 10
 
-    dotprod = np.vdot if np.iscomplexobj(x) else np.dot
+    dotprod = np.vdot if xp.isdtype(x.dtype, "complex floating") else functools.partial(xp.vecdot, axis=-1)
 
     matvec = A.matvec
     psolve = M.matvec
-    r = b - matvec(x) if x.any() else b.copy()
+    r = b - matvec(x) if xp.any(x) else xp_copy(b)
 
     # Dummy value to initialize var, silences warnings
     rho_prev, p = None, None
 
     for iteration in range(maxiter):
-        if np.linalg.norm(r) < atol:  # Are we done?
+        converged = xp_vector_norm(r, axis=-1) < atol
+        if xp.all(converged):
             return x, 0
 
         z = psolve(r)
         rho_cur = dotprod(r, z)
+
         if iteration > 0:
-            beta = rho_cur / rho_prev
+            beta = xpx.apply_where(
+                ~converged,
+                (rho_cur, rho_prev),
+                lambda cur, prev: cur / prev,
+                fill_value=0.0,
+                xp=xp
+            )
+            beta = xp.expand_dims(beta, axis=-1)
+
             p *= beta
             p += z
         else:  # First spin
-            p = np.empty_like(r)
-            p[:] = z[:]
+            p = xp.empty_like(r)
+            p = xpx.at(p)[:, ...].set(z[:, ...])
 
         q = matvec(p)
-        alpha = rho_cur / dotprod(p, q)
+        c = dotprod(p, q)
+
+        alpha = xpx.apply_where(
+            ~converged ,
+            (rho_cur, c),
+            lambda rc, c: rc / c,
+            fill_value=0.0,
+            xp=xp
+        )
+        alpha = xp.expand_dims(alpha, axis=-1)
+
         x += alpha*p
         r -= alpha*q
         rho_prev = rho_cur

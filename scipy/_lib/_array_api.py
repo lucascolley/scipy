@@ -1028,3 +1028,7 @@ def xp_device_type(a: Array) -> Literal["cpu", "cuda", None]:
         return xp_device_type(a._meta)
     # array-api-strict is a stand-in for unknown libraries; don't special-case it
     return None
+
+
+def xp_isscalar(x):
+    return np.isscalar(x) or (is_array_api_obj(x) and x.ndim == 0)
