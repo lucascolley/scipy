@@ -33,8 +33,9 @@ def _create_sparse_poisson2d(n):
 class Bench(Benchmark):
     params = [
         [4, 6, 10, 16, 25, 40, 64, 100],
-        ['dense', 'spsolve', 'cg', 'minres', 'gmres', 'lgmres', 'gcrotmk',
-         'tfqmr']
+        # ['dense', 'spsolve', 'cg', 'minres', 'gmres', 'lgmres', 'gcrotmk',
+        #  'tfqmr']
+        ['cg']
     ]
     mapping = {'spsolve': spsolve, 'cg': cg, 'minres': minres, 'gmres': gmres,
                'lgmres': lgmres, 'gcrotmk': gcrotmk, 'tfqmr': tfqmr}

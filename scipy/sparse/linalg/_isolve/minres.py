@@ -89,7 +89,7 @@ def minres(A, b, x0=None, *, rtol=1e-5, shift=0.0, maxiter=None,
         https://web.stanford.edu/group/SOL/software/minres/minres-matlab.zip
 
     """
-    A, M, x, b = make_system(A, M, x0, b)
+    A, M, x, b, _ = make_system(A, M, x0, b)
 
     matvec = A.matvec
     psolve = M.matvec
