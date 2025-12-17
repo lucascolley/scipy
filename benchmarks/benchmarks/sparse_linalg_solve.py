@@ -1,6 +1,8 @@
 """
 Check the speed of the conjugate gradient solver.
 """
+import inspect
+
 import numpy as np
 from numpy.testing import assert_equal
 
@@ -8,7 +10,7 @@ from .common import Benchmark, safe_import
 
 with safe_import():
     from scipy import linalg, sparse
-    from scipy.sparse.linalg import cg, minres, gmres, tfqmr, spsolve
+    from scipy.sparse.linalg import cg, minres, gmres, tfqmr, spsolve, LinearOperator
 with safe_import():
     from scipy.sparse.linalg import lgmres
 with safe_import():
@@ -18,7 +20,11 @@ with safe_import():
 def _create_sparse_poisson1d(n):
     # Make Gilbert Strang's favorite matrix
     # http://www-math.mit.edu/~gs/PIX/cupcakematrix.jpg
-    P1d = sparse.diags([[-1]*(n-1), [2]*n, [-1]*(n-1)], [-1, 0, 1])
+    P1d = sparse.diags_array(
+        [[-1]*(n-1), [2]*n, [-1]*(n-1)],
+        offsets=[-1, 0, 1],
+        dtype=np.float64
+    )
     assert_equal(P1d.shape, (n, n))
     return P1d
 
@@ -30,9 +36,16 @@ def _create_sparse_poisson2d(n):
     return P2d.tocsr()
 
 
+def _create_sparse_poisson2d_coo(n):
+    P1d = _create_sparse_poisson1d(n)
+    P2d = sparse.kronsum(P1d, P1d)
+    assert_equal(P2d.shape, (n*n, n*n))
+    return P2d.tocoo()
+
+
 class Bench(Benchmark):
     params = [
-        [4, 6, 10, 16, 25, 40, 64, 100],
+        [4, 8, 16, 32, 64, 128, 256, 512],
         ['dense', 'spsolve', 'cg', 'minres', 'gmres', 'lgmres', 'gcrotmk',
          'tfqmr']
     ]
@@ -55,6 +68,82 @@ class Bench(Benchmark):
             linalg.solve(self.P_dense, self.b)
         else:
             self.mapping[solver](self.P_sparse, self.b)
+
+
+class BatchedCG(Benchmark):
+    params = [
+        [2, 4, 6, 8],
+        [1, 10, 100, 500, 1000, 2500, 5000, 10000]
+    ]
+    param_names = ['(n,n)', 'batch_size']
+
+    def setup(self, n, batch_size):
+        rng = np.random.default_rng(42)
+        
+        self.batched = "xp" in inspect.signature(LinearOperator.__init__).parameters
+        if self.batched:
+            P_sparse = _create_sparse_poisson2d_coo(n)
+            if batch_size > 1:
+                self.P_sparse = sparse.vstack(
+                    [P_sparse] * batch_size, format="coo"
+                ).reshape(batch_size, n*n, n*n)
+                self.b = rng.standard_normal((batch_size, n*n))
+            else:
+                self.P_sparse = P_sparse
+                self.b = rng.standard_normal(n*n)
+        else:
+            self.P_sparse = _create_sparse_poisson2d(n)
+            self.b = [rng.standard_normal(n*n) for _ in range(batch_size)]
+
+    def time_solve(self, n, batch_size):
+        if self.batched:
+            cg(self.P_sparse, self.b)
+        else:
+            for i in range(batch_size):
+                cg(self.P_sparse, self.b[i])
+
+
+def _create_dense_random(n, batch_shape=None):
+    rng = np.random.default_rng(42)
+    M = rng.standard_normal((n*n, n*n))
+    reg = 1e-3
+    if batch_shape:
+        M = np.broadcast_to(M[np.newaxis, ...], (*batch_shape, n*n, n*n))
+    
+    def matvec(x):
+        return np.squeeze(M.mT @ (M @ x[..., np.newaxis]), axis=-1) + reg * x
+    
+    return LinearOperator(shape=M.shape, matvec=matvec, dtype=np.float64)
+    
+
+class BatchedCGDense(Benchmark):
+    params = [
+        [2, 4, 8, 16, 24],
+        [1, 10, 100, 500, 1000]
+    ]
+    param_names = ['(n,n)', 'batch_size']
+
+    def setup(self, n, batch_size):
+        rng = np.random.default_rng(42)
+        
+        self.batched = "xp" in inspect.signature(LinearOperator.__init__).parameters
+        if self.batched:
+            if batch_size > 1:
+                self.A = _create_dense_random(n, batch_shape=(batch_size,))
+                self.b = rng.standard_normal((batch_size, n*n))
+            else:
+                self.A = _create_dense_random(n)
+                self.b = rng.standard_normal(n*n)
+        else:
+            self.A = _create_dense_random(n)
+            self.b = [rng.standard_normal(n*n) for _ in range(batch_size)]
+
+    def time_solve(self, n, batch_size):
+        if self.batched:
+            cg(self.A, self.b)
+        else:
+            for i in range(batch_size):
+                cg(self.A, self.b[i])
 
 
 class Lgmres(Benchmark):
