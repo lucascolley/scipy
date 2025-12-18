@@ -1,0 +1,40 @@
+name: No Fortran compiler build
+
+on:
+  pull_request:
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  no_fortran:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        submodules: recursive
+
+    - uses: prefix-dev/setup-pixi@ba3bb36eb2066252b2363392b7739741bb777659 # v0.8.1
+      with:
+        pixi-version: v0.62.0
+        run-install: false
+
+    - name: Install test environment
+      run: pixi global install --with=pyyaml --environment=test python pytest
+
+    - name: Build and install SciPy
+      run: BUILD_EDITABLE_PYTHON=false pixi global install --environment=test --path .
+    
+    - name: Show SciPy config
+      working-directory: tools
+      run: python -c 'import scipy; scipy.show_config()'
+    
+    - name: Test `scipy.linalg`
+      working-directory: tools
+      run: |
+        python -c "
+          import scipy, pytest
+          from pathlib import Path
+          linalg = Path(scipy.linalg.__file__).parent
+          pytest.main(linalg)
+        "
