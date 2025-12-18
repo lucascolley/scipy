@@ -50,7 +50,7 @@ linalg_cython_gen = generator(cython,
 
 # fblas
 fblas_module = custom_target('fblas_module',
-  output: ['_fblasmodule.c', '_fblas-f2pywrappers.f'],
+  output: ['_fblasmodule.c'],
   input: 'fblas.pyf.src',
   command: [generate_f2pymod, '@INPUT@', '-o', '@OUTDIR@'] + f2py_freethreading_arg,
   depend_files:
@@ -116,7 +116,7 @@ py3.extension_module('_flapack',
 #       in azure-pipelines.yml if you want to check that).
 if use_ilp64
   fblas64_module = custom_target('fblas64_module',
-    output: ['_fblas_64module.c', '_fblas_64-f2pywrappers.f'],
+    output: ['_fblas_64module.c'],
     input: 'fblas_64.pyf.src',
     command: [generate_f2pymod, '@INPUT@', '-o', '@OUTDIR@'] + f2py_ilp64_opts + f2py_freethreading_arg,
     depend_files:
@@ -138,7 +138,7 @@ if use_ilp64
   )
 
   flapack64_module = custom_target('flapack64_module',
-    output: ['_flapack_64module.c', '_flapack_64-f2pywrappers.f'],
+    output: ['_flapack_64module.c'],
     input: 'flapack_64.pyf.src',
     command: [generate_f2pymod, '@INPUT@', '-o', '@OUTDIR@'] + f2py_ilp64_opts + f2py_freethreading_arg,
   )
