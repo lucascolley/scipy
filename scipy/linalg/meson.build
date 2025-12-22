@@ -49,28 +49,29 @@ linalg_cython_gen = generator(cython,
   depends : [_cython_tree, __init__py, cython_blas_pxd])#, cython_linalg])
 
 # fblas
-# fblas_module = custom_target('fblas_module',
-#   output: ['_fblasmodule.c', '_fblas-f2pywrappers.f'],
-#   input: 'fblas.pyf.src',
-#   command: [generate_f2pymod, '@INPUT@', '-o', '@OUTDIR@'] + f2py_freethreading_arg,
-#   depend_files:
-#     [
-#       'fblas_l1.pyf.src',
-#       'fblas_l2.pyf.src',
-#       'fblas_l3.pyf.src',
-#     ]
-# )
+fblas_module = custom_target('fblas_module',
+  output: ['_fblasmodule.c', '_fblas-f2pywrappers.f'],
+  input: 'fblas.pyf.src',
+  command: [generate_f2pymod, '@INPUT@', '-o', '@OUTDIR@'] + f2py_freethreading_arg,
+  depend_files:
+    [
+      'fblas_l1.pyf.src',
+      'fblas_l2.pyf.src',
+      'fblas_l3.pyf.src',
+    ]
+)
 
 # Note: we're linking LAPACK on purpose here. For some routines (e.g., spmv)
 # the float/double routines are in BLAS while the complex routines are in
 # LAPACK - we have historically put these in `_fblas`.
-# py3.extension_module('_fblas',
-#   fblas_module,
-#   link_args: version_link_args,
-#   dependencies: [lapack_lp64_dep, fortranobject_dep],
-#   install: true,
-#   subdir: 'scipy/linalg'
-# )
+py3.extension_module('_fblas',
+  fblas_module,
+  link_args: version_link_args,
+  dependencies: [lapack_lp64_dep, fortranobject_dep],
+  install: true,
+  subdir: 'scipy/linalg',
+  link_language: 'fortran'
+)
 
 # flapack
 flapack_module = custom_target('flapack_module',
