@@ -70,7 +70,6 @@ py3.extension_module('_fblas',
   dependencies: [lapack_lp64_dep, fortranobject_dep],
   install: true,
   subdir: 'scipy/linalg',
-  link_language: 'fortran'
 )
 
 # flapack
