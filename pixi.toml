@@ -152,7 +152,6 @@ blas-devel = "*"
 ### Default building ###
 
 [feature.build-deps.dependencies]
-compilers = "*"
 ccache = "*"
 pkg-config = "*"
 ninja = "*"
@@ -164,6 +163,13 @@ pybind11 = "*"
 # needed at build-time as well as run-time
 numpy = "*"
 blas-devel = "*"
+
+[feature.build-deps.target.unix.dependencies]
+compilers = "*"
+
+[feature.build-deps.target.win-64.dependencies]
+flang_win-64 = "21.*"
+lld = "21.*"
 
 [feature.win-openblas.target.win-64.dependencies]
 openblas = "*"

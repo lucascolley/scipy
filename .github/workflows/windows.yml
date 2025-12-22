@@ -23,12 +23,6 @@ jobs:
 
   fast_spin:
     name: fast, py3.12/npAny, spin
-    needs: get_commit_message
-    # Ensure (a) this doesn't run on forks by default, and
-    #        (b) it does run with Act locally (`github` doesn't exist there)
-    if: >
-      needs.get_commit_message.outputs.message == 1
-      && (github.repository == 'scipy/scipy' || github.repository == '')
     runs-on: windows-2025
     steps:
       - name: Checkout
@@ -38,7 +32,7 @@ jobs:
 
       - uses: prefix-dev/setup-pixi@ba3bb36eb2066252b2363392b7739741bb777659 # v0.8.1
         with:
-          pixi-version: v0.56.0
+          pixi-version: v0.62.0
           cache: false
           environments: >-
             build
