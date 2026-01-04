@@ -1,5 +1,3 @@
-fs = import('fs')
-
 # Platform detection
 is_mingw = is_windows and cc.get_id() == 'gcc'
 if is_mingw and ff.get_id() != 'gcc'
@@ -829,6 +827,7 @@ if use_ilp64
   )
 endif
 
+subdir('_external')
 subdir('_lib')
 subdir('special')
 subdir('linalg')

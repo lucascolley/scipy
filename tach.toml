@@ -1,10 +1,6 @@
 respect_gitignore = "if_git_repo"
 
 exclude = [
-  "scipy/_lib/array_api_compat",
-  "scipy/_lib/array_api_extra",
-  "scipy/_lib/cobyqa",
-  "scipy/_lib/pyprima",
   "subprojects",
   "tools",
   "**/tests",
