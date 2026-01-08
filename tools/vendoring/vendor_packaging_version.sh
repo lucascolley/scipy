@@ -12,7 +12,6 @@ COMMIT_HASH="f58537628042c7f29780b9d33f31597e7fc9d664"
 ROOT_DIR="scipy/_external/packaging_version/src"
 
 rm -rf $ROOT_DIR
-mkdir -p $ROOT_DIR
 mkdir -p $ROOT_DIR/.tmp
 git clone $REPO_URL $ROOT_DIR/.tmp
 pushd $ROOT_DIR/.tmp
