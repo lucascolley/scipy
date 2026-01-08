@@ -641,6 +641,7 @@ if HAVE_SCPDT:
         "scipy/interpolate/_interpnd_info.py",
         "scipy/interpolate/_rbfinterp_pythran.py",
         "scipy/_build_utils/tempita.py",
+        "scipy/_external",
         "scipy/_lib/array_api_compat",
         "scipy/_lib/highs",
         "scipy/_lib/unuran",
