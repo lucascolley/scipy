@@ -61,18 +61,18 @@ from . import _distributor_init
 del _distributor_init
 
 
-from scipy._lib import _pep440
+from scipy._external.packaging_version import version
 # In maintenance branch, change to np_maxversion N+3 if numpy is at N
 np_minversion = '2.0.0'
 np_maxversion = '9.9.99'
-if (_pep440.parse(__numpy_version__) < _pep440.Version(np_minversion) or
-        _pep440.parse(__numpy_version__) >= _pep440.Version(np_maxversion)):
+if (version.parse(__numpy_version__) < version.Version(np_minversion) or
+        version.parse(__numpy_version__) >= version.Version(np_maxversion)):
     import warnings
     warnings.warn(f"A NumPy version >={np_minversion} and <{np_maxversion}"
                   f" is required for this version of SciPy (detected "
                   f"version {__numpy_version__})",
                   UserWarning, stacklevel=2)
-del _pep440
+del version
 
 
 # This is the first import of an extension module within SciPy. If there's
