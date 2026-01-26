@@ -5066,7 +5066,7 @@ class TestKSTwoSamples:
         y = x.copy()
         x[6] = x6val
         res = stats.ks_2samp(x, y, alternative=alternative)
-        assert res.statistic == 0.1
+        assert_allclose(res.statistic, 0.1, rtol=1e-15)
         assert res.statistic_location == ref_location
         assert res.statistic_sign == ref_sign
 
@@ -8672,6 +8672,7 @@ class TestBrunnerMunzel:
         xp_assert_equal(statistic, xp.asarray(xp.nan))
         xp_assert_equal(pvalue, xp.asarray(xp.nan))
 
+    @pytest.mark.skip_xp_backends('jax.numpy', reason='lazy -> no nan_policy')
     def test_brunnermunzel_nan_input_propagate(self, xp):
         X = xp.asarray([1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 4, 1, 1, xp.nan])
         Y = xp.asarray([3, 3, 4, 3, 1, 2, 3, 1, 1, 5, 4.])
