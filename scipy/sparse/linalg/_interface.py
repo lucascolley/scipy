@@ -55,7 +55,7 @@ from scipy._lib._array_api import (
     _asarray,
     array_namespace,
     is_array_api_obj,
-    is_lazy_array,
+
     is_pydata_sparse_array,
     np_compat,
     xp_capabilities,
