@@ -645,10 +645,9 @@ class TestAsLinearOperator:
             args = ()
 
             def __init__(self, dtype):
-                xp_dtype = _xp.asarray(np.empty(0, dtype=dtype)).dtype
                 super().__init__(
-                    dtype=xp_dtype,
-                    shape=original.shape
+                    dtype=dtype,
+                    shape=original.shape,
                 )
 
             def _matvec(self, x):
@@ -667,19 +666,18 @@ class TestAsLinearOperator:
                 shape = self.shape[1], self.shape[0]
                 matvec = partial(rmv)
                 rmatvec = partial(mv)
-                xp_dtype = _xp.asarray(np.empty(0, dtype=self.dtype)).dtype
                 return interface.LinearOperator(matvec=matvec,
                                                 rmatvec=rmatvec,
-                                                dtype=xp_dtype,
-                                                shape=shape)
+                                                dtype=dtype,
+                                                shape=shape,)
 
         class HasRmatmat(HasRmatvec):
             def _matmat(self, x):
-                return original.dot(x)
+                return original @ x
 
             def _rmatmat(self, x):
-                return original.T.conj().dot(x)
-        
+                return _xp.conj(original.T) @ x
+
         if xp:
             cases.append((original, original))
 
