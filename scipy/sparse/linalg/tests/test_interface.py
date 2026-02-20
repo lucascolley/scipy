@@ -87,13 +87,13 @@ class TestLinearOperator:
             xp_assert_equal(A.dot(_asarray([1,2,3])), _asarray([14,32]))
             xp_assert_equal(A.dot(_asarray([[1],[2],[3]])), _asarray([[14],[32]]))
 
-            # if is_numpy(xp):
-            #     xp_assert_equal(
-            #         A.matvec(matrix([[1],[2],[3]])),
-            #         _asarray([[14],[32]]),
-            #     )
-            #     xp_assert_equal(A @ matrix([[1],[2],[3]]), _asarray([[14],[32]]))
-            #     xp_assert_equal(A.dot(matrix([[1],[2],[3]])), _asarray([[14],[32]]))
+            if is_numpy(xp):
+                xp_assert_equal(
+                    A.matvec(matrix([[1],[2],[3]])),
+                    _asarray([[14],[32]]),
+                )
+                xp_assert_equal(A @ matrix([[1],[2],[3]]), _asarray([[14],[32]]))
+                xp_assert_equal(A.dot(matrix([[1],[2],[3]])), _asarray([[14],[32]]))
 
             xp_assert_equal((2*A) @ _asarray([1,1,1]), _asarray([12,30]))
             xp_assert_equal((2 * A).rmatvec(_asarray([1, 1])), _asarray([10, 14, 18]))
@@ -150,10 +150,10 @@ class TestLinearOperator:
             assert isinstance(A.dot(_asarray([1,2,3])), array_object)
             assert isinstance(A.dot(_asarray([[1],[2],[3]])), array_object)
 
-            # if is_numpy(xp):
-            #     assert isinstance(A.matvec(matrix([[1],[2],[3]])), array_object)
-            #     assert isinstance(A @ matrix([[1],[2],[3]]), array_object)
-            #     assert isinstance(A.dot(matrix([[1],[2],[3]])), array_object)
+            if is_numpy(xp):
+                assert isinstance(A.matvec(matrix([[1],[2],[3]])), array_object)
+                assert isinstance(A @ matrix([[1],[2],[3]]), array_object)
+                assert isinstance(A.dot(matrix([[1],[2],[3]])), array_object)
 
             assert isinstance(2*A, interface._ScaledLinearOperator)
             assert isinstance(2j*A, interface._ScaledLinearOperator)
@@ -585,9 +585,9 @@ class TestDotTests:
                 return RotOp(self.dtype, self.shape, negative_theta)
 
         theta = xp.pi / 2
+        data_dtype = "float64"
         op = RotOp(shape=(*batch_shape, 2, 2), dtype=xp.float64, theta=theta)
 
-        data_dtype = "float64"
         self.check_matvec(xp, op, data_dtype=data_dtype, complex_data=False)
         self.check_matmat(xp, op, data_dtype=data_dtype, complex_data=False)
 
@@ -631,43 +631,46 @@ class TestAsLinearOperator:
 
         # Test default implementations of _adjoint and _rmatvec, which
         # refer to each other.
-        def mv(x, dtype):
-            y = original.dot(x)
+        _xp = xp if xp is not None else np
+        def mv(x):
+            y = original @ x
             if len(x.shape) == 2:
-                y = y.reshape(-1, 1)
+                y = _xp.reshape(y, (-1, 1))
             return y
 
-        def rmv(x, dtype):
-            return original.T.conj().dot(x)
+        def rmv(x):
+            return _xp.conj(original.T) @ x
 
         class BaseMatlike(interface.LinearOperator):
             args = ()
 
             def __init__(self, dtype):
+                xp_dtype = _xp.asarray(np.empty(0, dtype=dtype)).dtype
                 super().__init__(
-                    dtype=np.dtype(dtype),
+                    dtype=xp_dtype,
                     shape=original.shape
                 )
 
             def _matvec(self, x):
-                return mv(x, self.dtype)
+                return mv(x)
 
         class HasRmatvec(BaseMatlike):
             args = ()
 
             def _rmatvec(self,x):
-                return rmv(x, self.dtype)
+                return rmv(x)
 
         class HasAdjoint(BaseMatlike):
             args = ()
 
             def _adjoint(self):
                 shape = self.shape[1], self.shape[0]
-                matvec = partial(rmv, dtype=self.dtype)
-                rmatvec = partial(mv, dtype=self.dtype)
+                matvec = partial(rmv)
+                rmatvec = partial(mv)
+                xp_dtype = _xp.asarray(np.empty(0, dtype=self.dtype)).dtype
                 return interface.LinearOperator(matvec=matvec,
                                                 rmatvec=rmatvec,
-                                                dtype=self.dtype,
+                                                dtype=xp_dtype,
                                                 shape=shape)
 
         class HasRmatmat(HasRmatvec):
@@ -680,9 +683,9 @@ class TestAsLinearOperator:
         if xp:
             cases.append((original, original))
 
-            # cases.append((HasRmatvec(dtype), original))
-            # cases.append((HasAdjoint(dtype), original))
-            # cases.append((HasRmatmat(dtype), original))
+            cases.append((HasRmatvec(dtype), original))
+            cases.append((HasAdjoint(dtype), original))
+            cases.append((HasRmatmat(dtype), original))
             
             cases.append((interface.aslinearoperator(original.T).T, original))
             cases.append((
@@ -693,7 +696,6 @@ class TestAsLinearOperator:
                 interface.aslinearoperator(original.T).adjoint(),
                 xp.conj(original)),
             )
-            cases.append((interface.aslinearoperator(original.T).T, original))
 
             return cases
         
