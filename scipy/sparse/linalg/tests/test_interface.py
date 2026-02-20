@@ -14,7 +14,8 @@ from numpy.testing import assert_, assert_equal
 
 import numpy as np
 from scipy._lib._array_api import (
-    make_xp_test_case, xp_assert_close, xp_assert_equal, xp_ravel, is_numpy,
+    SCIPY_ARRAY_API, make_xp_test_case, xp_assert_close, xp_assert_equal, xp_ravel,
+    is_numpy,
 )
 from scipy._external import array_api_extra as xpx
 import scipy.sparse as sparse
@@ -87,7 +88,7 @@ class TestLinearOperator:
             xp_assert_equal(A.dot(_asarray([1,2,3])), _asarray([14,32]))
             xp_assert_equal(A.dot(_asarray([[1],[2],[3]])), _asarray([[14],[32]]))
 
-            if is_numpy(xp):
+            if not SCIPY_ARRAY_API:
                 xp_assert_equal(
                     A.matvec(matrix([[1],[2],[3]])),
                     _asarray([[14],[32]]),
@@ -150,7 +151,7 @@ class TestLinearOperator:
             assert isinstance(A.dot(_asarray([1,2,3])), array_object)
             assert isinstance(A.dot(_asarray([[1],[2],[3]])), array_object)
 
-            if is_numpy(xp):
+            if not SCIPY_ARRAY_API:
                 assert isinstance(A.matvec(matrix([[1],[2],[3]])), array_object)
                 assert isinstance(A @ matrix([[1],[2],[3]]), array_object)
                 assert isinstance(A.dot(matrix([[1],[2],[3]])), array_object)
