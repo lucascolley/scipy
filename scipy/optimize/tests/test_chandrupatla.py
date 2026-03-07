@@ -548,7 +548,7 @@ class TestFindRoot:
     def f(self, q, p):
         return special.ndtr(q) - p
 
-    @pytest.mark.parametrize('method', ['chandrupatla', 'secant'])
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
     @pytest.mark.parametrize('p', [0.6, np.linspace(-0.05, 1.05, 10)])
     def test_basic(self, method, p, xp):
         # Invert distribution CDF and compare against distribution `ppf`
