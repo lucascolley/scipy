@@ -261,8 +261,8 @@ def find_root(f, init, /, *, args=(), kwargs=None, method=None,
     if method in {'chandrupatla', None}:
         res = _chandrupatla(f, xl, xr, args=args, kwargs=kwargs, **tolerances,
                             maxiter=maxiter, callback=_callback)
-    elif method == 'secant':  # TODO: add kwargs support
-        res = _secant(f, xl, xr, args=args, **tolerances,
+    elif method == 'secant':
+        res = _secant(f, xl, xr, args=args, kwargs=kwargs, **tolerances,
                       maxiter=maxiter, callback=_callback)
 
     return reformat_result(res)
@@ -855,14 +855,14 @@ def bracket_minimum(f, xm0, *, xl0=None, xr0=None, xmin=None, xmax=None,
     return res
 
 
-def _secant(func, a, b, *, args=(), xatol=None, xrtol=None,
+def _secant(func, a, b, *, args=(), kwargs=None, xatol=None, xrtol=None,
             fatol=None, frtol=0, maxiter=None, callback=None):
-    res = _chandrupatla_iv(func, args, xatol, xrtol,
+    res = _chandrupatla_iv(func, args, kwargs, xatol, xrtol,
                            fatol, frtol, maxiter, callback)
-    func, args, xatol, xrtol, fatol, frtol, maxiter, callback = res
+    func, args, kwargs, xatol, xrtol, fatol, frtol, maxiter, callback = res
 
     # Initialization
-    temp = eim._initialize(func, (a, b), args)
+    temp = eim._initialize(func, (a, b), args, kwargs=kwargs)
     func, xs, fs, args, shape, dtype, xp = temp
     x1, x2 = xs
     f1, f2 = fs
