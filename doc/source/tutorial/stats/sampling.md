@@ -14,7 +14,7 @@ kernelspec:
 +++ {"tags": ["jupyterlite_sphinx_strip"]}
 
 ```{eval-rst}
-.. jupyterlite:: ../../_contents/sampling.ipynb
+.. notebooklite:: sampling.md
    :new_tab: True
 ```
 
@@ -136,7 +136,7 @@ possible to truncate the distributions using a `domain` parameter.  All
 generators need a stream of uniform random numbers that are transformed into
 random variates of the given distribution. This is done by passing a `random_state`
 parameter with a NumPy BitGenerator as the uniform random number generator.
-`random_state` can either be a integer, {class}`numpy.random.Generator`,
+`random_state` can either be an integer, {class}`numpy.random.Generator`,
 or {class}`numpy.random.RandomState`.
 
 ```{warning}

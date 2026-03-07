@@ -7,11 +7,16 @@ from scipy.optimize._chandrupatla import (_chandrupatla, _chandrupatla_minimize,
                                           _chandrupatla_iv)
 import scipy._lib._elementwise_iterative_method as eim
 from scipy._lib._util import _RichResult
+from scipy._lib._array_api import xp_capabilities
 
 
-def find_root(f, init, /, *, args=(), method=None, tolerances=None, maxiter=None,
-              callback=None):
-    """Find the root of a real-valued function of a real variable.
+@xp_capabilities(
+    skip_backends=[('dask.array', 'boolean indexing assignment'),
+                   ('array_api_strict', 'Currently uses fancy indexing assignment.'),
+                   ('jax.numpy', 'JAX arrays do not support item assignment.')])
+def find_root(f, init, /, *, args=(), kwargs=None, method=None,
+              tolerances=None, maxiter=None, callback=None):
+    """Find the root of a monotonic, real-valued function of a real variable.
 
     For each element of the output of `f`, `find_root` seeks the scalar
     root that makes the element 0. By default, this function uses Chandrupatla's
@@ -64,6 +69,9 @@ def find_root(f, init, /, *, args=(), method=None, tolerances=None, maxiter=None
           be a bracket.
         - ``'secant'``: uses the secant method [2]_. `initial` may be any two points,
           but convergence is not guaranteed.
+
+    kwargs : dict of str:array_like, optional
+        Additional keyword arguments to be passed to `f`. See `args`.
     tolerances : dictionary of floats, optional
         Absolute and relative tolerances on the root and function value.
         Valid keys of the dictionary are:
@@ -162,7 +170,7 @@ def find_root(f, init, /, *, args=(), method=None, tolerances=None, maxiter=None
         "A new hybrid quadratic/bisection algorithm for finding the zero of a
         nonlinear function without using derivatives".
         Advances in Engineering Software, 28(3), 145-149.
-        https://doi.org/10.1016/s0965-9978(96)00051-8
+        :doi:`10.1016/s0965-9978(96)00051-8`.
     .. [2] "Secant Method". *Wikipedia*. https://en.wikipedia.org/wiki/Secant_method
 
     See Also
@@ -251,17 +259,22 @@ def find_root(f, init, /, *, args=(), method=None, tolerances=None, maxiter=None
         _callback = callback
 
     if method in {'chandrupatla', None}:
-        res = _chandrupatla(f, xl, xr, args=args, **tolerances,
+        res = _chandrupatla(f, xl, xr, args=args, kwargs=kwargs, **tolerances,
                             maxiter=maxiter, callback=_callback)
-    elif method == 'secant':
+    elif method == 'secant':  # TODO: add kwargs support
         res = _secant(f, xl, xr, args=args, **tolerances,
                       maxiter=maxiter, callback=_callback)
 
     return reformat_result(res)
 
 
-def find_minimum(f, init, /, *, args=(), tolerances=None, maxiter=100, callback=None):
-    """Find the minimum of an unimodal, real-valued function of a real variable.
+@xp_capabilities(
+    skip_backends=[('dask.array', 'boolean indexing assignment'),
+                   ('array_api_strict', 'Currently uses fancy indexing assignment.'),
+                   ('jax.numpy', 'JAX arrays do not support item assignment.')])
+def find_minimum(f, init, /, *, args=(), kwargs=None,
+                 tolerances=None, maxiter=100, callback=None):
+    """Find the minimum of a unimodal, real-valued function of a real variable.
 
     For each element of the output of `f`, `find_minimum` seeks the scalar minimizer
     that minimizes the element. This function currently uses Chandrupatla's
@@ -305,6 +318,8 @@ def find_minimum(f, init, /, *, args=(), tolerances=None, maxiter=100, callback=
         If the callable for which the root is desired requires arguments that are
         not broadcastable with `x`, wrap that callable with `f` such that `f`
         accepts only `x` and broadcastable ``*args``.
+    kwargs : dict of str:array_like, optional
+        Additional keyword arguments to be passed to `f`. See `args`.
     tolerances : dictionary of floats, optional
         Absolute and relative tolerances on the root and function value.
         Valid keys of the dictionary are:
@@ -371,11 +386,8 @@ def find_minimum(f, init, /, *, args=(), tolerances=None, maxiter=100, callback=
     (where one of the inequalities is strict) are the values of `f` evaluated
     at those points, then the algorithm is considered to have converged when:
 
-    - ``xr - xl <= abs(xm)*xrtol + xatol`` or
+    - ``abs(xr - xm)/2 <= abs(xm)*xrtol + xatol`` or
     - ``(fl - 2*fm + fr)/2 <= abs(fm)*frtol + fatol``.
-
-    Note that first of these differs from the termination conditions described
-    in [1]_.
 
     The default value of `xrtol` is the square root of the precision of the
     appropriate dtype, and ``xatol = fatol = frtol`` is the smallest normal
@@ -388,7 +400,7 @@ def find_minimum(f, init, /, *, args=(), tolerances=None, maxiter=100, callback=
         "An efficient quadratic fit-sectioning algorithm for minimization
         without derivatives".
         Computer Methods in Applied Mechanics and Engineering, 152 (1-2),
-        211-217. https://doi.org/10.1016/S0045-7825(97)00190-4
+        211-217. :doi:`10.1016/S0045-7825(97)00190-4`.
 
     See Also
     --------
@@ -483,13 +495,17 @@ def find_minimum(f, init, /, *, args=(), tolerances=None, maxiter=100, callback=
     else:
         _callback = callback
 
-    res = _chandrupatla_minimize(f, xl, xm, xr, args=args, **tolerances,
+    res = _chandrupatla_minimize(f, xl, xm, xr, args=args, kwargs=kwargs, **tolerances,
                                  maxiter=maxiter, callback=_callback)
     return reformat_result(res)
 
 
-def bracket_root(f, xl0, xr0=None, *, xmin=None, xmax=None, factor=None, args=(),
-                 maxiter=1000):
+@xp_capabilities(
+    skip_backends=[('dask.array', 'boolean indexing assignment'),
+                   ('array_api_strict', 'Currently uses fancy indexing assignment.'),
+                   ('jax.numpy', 'JAX arrays do not support item assignment.')])
+def bracket_root(f, xl0, xr0=None, *, xmin=None, xmax=None, factor=None,
+                 args=(), kwargs=None, maxiter=1000):
     """Bracket the root of a monotonic, real-valued function of a real variable.
 
     For each element of the output of `f`, `bracket_root` seeks the scalar
@@ -516,7 +532,7 @@ def bracket_root(f, xl0, xr0=None, *, xmin=None, xmax=None, factor=None, args=()
         `f` must be an elementwise function: each element ``f(x)[i]``
         must equal ``f(x[i])`` for all indices ``i``. It must not mutate the
         array ``x`` or the arrays in ``args``.
-    xl0, xr0: float array_like
+    xl0, xr0 : float array_like
         Starting guess of bracket, which need not contain a root. If `xr0` is
         not provided, ``xr0 = xl0 + 1``. Must be broadcastable with all other
         array inputs.
@@ -530,6 +546,8 @@ def bracket_root(f, xl0, xr0=None, *, xmin=None, xmax=None, factor=None, args=()
         If the callable for which the root is desired requires arguments that are
         not broadcastable with `x`, wrap that callable with `f` such that `f`
         accepts only `x` and broadcastable ``*args``.
+    kwargs : dict of str:array_like, optional
+        Additional keyword arguments to be passed to `f`. See `args`.
     maxiter : int, default: 1000
         The maximum number of iterations of the algorithm to perform.
 
@@ -553,7 +571,7 @@ def bracket_root(f, xl0, xr0=None, *, xmin=None, xmax=None, factor=None, args=()
             - ``-3`` : A non-finite value was encountered.
             - ``-4`` : Iteration was terminated by `callback`.
             - ``-5``: The initial bracket does not satisfy`xmin <= xl0 < xr0 < xmax`.
-            
+
         bracket : 2-tuple of float arrays
             The lower and upper endpoints of the bracket, if the algorithm
             terminated successfully.
@@ -589,10 +607,10 @@ def bracket_root(f, xl0, xr0=None, *, xmin=None, xmax=None, factor=None, args=()
 
     If two brackets are found - that is, a bracket is found on both sides in
     the same iteration, the smaller of the two is returned.
-    
+
     If roots of the function are found, both `xl` and `xr` are set to the
     leftmost root.
-    
+
     See Also
     --------
     find_root
@@ -643,7 +661,7 @@ def bracket_root(f, xl0, xr0=None, *, xmin=None, xmax=None, factor=None, args=()
     """  # noqa: E501
 
     res = _bracket_root(f, xl0, xr0=xr0, xmin=xmin, xmax=xmax, factor=factor,
-                        args=args, maxiter=maxiter)
+                        args=args, kwargs=kwargs, maxiter=maxiter)
     res.bracket = res.xl, res.xr
     res.f_bracket = res.fl, res.fr
     del res.xl
@@ -653,8 +671,13 @@ def bracket_root(f, xl0, xr0=None, *, xmin=None, xmax=None, factor=None, args=()
     return res
 
 
+@xp_capabilities(
+    skip_backends=[('dask.array', 'boolean indexing assignment'),
+                   ('array_api_strict', 'Currently uses fancy indexing assignment.'),
+                   ('jax.numpy', 'JAX arrays do not support item assignment.'),
+                   ('torch', 'data-apis/array-api-compat#271')])
 def bracket_minimum(f, xm0, *, xl0=None, xr0=None, xmin=None, xmax=None,
-                     factor=None, args=(), maxiter=1000):
+                     factor=None, args=(), kwargs=None, maxiter=1000):
     """Bracket the minimum of a unimodal, real-valued function of a real variable.
 
     For each element of the output of `f`, `bracket_minimum` seeks the scalar
@@ -681,9 +704,9 @@ def bracket_minimum(f, xm0, *, xl0=None, xr0=None, xmin=None, xmax=None,
         `f` must be an elementwise function: each element ``f(x)[i]``
         must equal ``f(x[i])`` for all indices ``i``. It must not mutate the
         array ``x`` or the arrays in ``args``.
-    xm0: float array_like
+    xm0 : float array_like
         Starting guess for middle point of bracket.
-    xl0, xr0: float array_like, optional
+    xl0, xr0 : float array_like, optional
         Starting guesses for left and right endpoints of the bracket. Must
         be broadcastable with all other array inputs.
     xmin, xmax : float array_like, optional
@@ -696,6 +719,8 @@ def bracket_minimum(f, xm0, *, xl0=None, xr0=None, xmin=None, xmax=None,
         If the callable for which the root is desired requires arguments that are
         not broadcastable with `x`, wrap that callable with `f` such that `f`
         accepts only `x` and broadcastable ``*args``.
+    kwargs : dict of str:array_like, optional
+        Additional keyword arguments to be passed to `f`. See `args`.
     maxiter : int, default: 1000
         The maximum number of iterations of the algorithm to perform.
 
@@ -818,7 +843,7 @@ def bracket_minimum(f, xm0, *, xl0=None, xr0=None, xmin=None, xmax=None,
     """  # noqa: E501
 
     res = _bracket_minimum(f, xm0, xl0=xl0, xr0=xr0, xmin=xmin, xmax=xmax,
-                           factor=factor, args=args, maxiter=maxiter)
+                           factor=factor, args=args, kwargs=kwargs, maxiter=maxiter)
     res.bracket = res.xl, res.xm, res.xr
     res.f_bracket = res.fl, res.fm, res.fr
     del res.xl

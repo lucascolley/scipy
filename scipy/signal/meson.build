@@ -62,6 +62,9 @@ py3.extension_module('_spline',
 
 py3.install_sources([
     '__init__.py',
+    '_support_alternative_backends.py',
+    '_signal_api.py',
+    '_delegators.py',
     '_arraytools.py',
     '_spline_filters.py',
     '_czt.py',
@@ -71,6 +74,7 @@ py3.install_sources([
     '_ltisys.py',
     '_max_len_seq.py',
     '_peak_finding.py',
+    '_polyutils.py',
     '_savitzky_golay.py',
     '_short_time_fft.py',
     '_signaltools.py',
@@ -89,7 +93,6 @@ py3.install_sources([
     'spline.py',
     'waveforms.py',
     'wavelets.py',
-    '_support_alternative_backends.py',
   ],
   subdir: 'scipy/signal'
 )

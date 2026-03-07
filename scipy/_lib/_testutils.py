@@ -25,9 +25,9 @@ try:
 except ImportError:
     cython = None
 else:
-    from scipy._lib import _pep440
+    from scipy._external.packaging_version import version
     required_version = '3.0.8'
-    if _pep440.parse(cython_version) < _pep440.Version(required_version):
+    if version.parse(cython_version) < version.Version(required_version):
         # too old or wrong cython, skip Cython API tests
         cython = None
 
@@ -95,8 +95,12 @@ class PytestTester:
 
         pytest_args = ['--showlocals', '--tb=short']
 
-        if extra_argv:
-            pytest_args += list(extra_argv)
+        if extra_argv is None:
+            extra_argv = []
+        pytest_args += extra_argv
+        if any(arg == "-m" or arg == "--markers" for arg in extra_argv):
+            # Likely conflict with default --mode=fast
+            raise ValueError("Must specify -m before --")
 
         if verbose and int(verbose) > 1:
             pytest_args += ["-" + "v"*(int(verbose)-1)]

@@ -5,8 +5,8 @@ import numpy as np
 from numpy.linalg import norm
 
 from scipy.linalg import cho_factor, cho_solve, LinAlgError
-from scipy.sparse import issparse
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
+from scipy._lib._sparse import issparse
 
 
 EPS = np.finfo(float).eps
@@ -411,7 +411,7 @@ def find_active_constraints(x, lb, ub, rtol=1e-10):
 
              *  0 - a constraint is not active.
              * -1 - a lower bound is active.
-             *  1 - a upper bound is active.
+             *  1 - an upper bound is active.
     """
     active = np.zeros_like(x, dtype=int)
 
