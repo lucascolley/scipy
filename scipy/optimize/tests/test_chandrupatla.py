@@ -553,8 +553,7 @@ class TestFindRoot:
     def test_basic(self, method, p, xp):
         # Invert distribution CDF and compare against distribution `ppf`
         ref = xp.asarray(stats.norm().ppf(p), dtype=xp.asarray(p).dtype)
-        a, b = ((xp.asarray(-5.), xp.asarray(5.)) if method == 'chandrupatla'
-                else (ref+0.1, ref+0.11))
+        a, b = xp.asarray(-5.), xp.asarray(5.)
         res = find_root(self.f, (a, b), args=(xp.asarray(p),), method=method)
         xp_assert_close(res.x, ref)
 

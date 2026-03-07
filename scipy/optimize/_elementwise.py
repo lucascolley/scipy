@@ -921,12 +921,12 @@ def _mod_ab(
         work.status[i] = eim._ECONVERGED
         stop[i] = True
 
-        # # If the bracket is no longer valid, report failure (unless a function
-        # # tolerance is met, as detected above).
-        # i = (xp.sign(work.y1) == xp.sign(work.y2)) & ~stop
+        # If the bracket is no longer valid, report failure (unless a function
+        # tolerance is met, as detected above).
+        i = (xp.sign(work.y1) == xp.sign(work.y2)) & ~stop
         NaN = xp.asarray(xp.nan, dtype=work.x3.dtype)
-        # work.x3[i], work.y3[i], work.status[i] = NaN, NaN, eim._ESIGNERR
-        # stop[i] = True
+        work.x3[i], work.y3[i], work.status[i] = NaN, NaN, eim._ESIGNERR
+        stop[i] = True
 
         # If the abscissae are non-finite or either function value is NaN,
         # report failure.
