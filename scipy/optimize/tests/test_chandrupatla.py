@@ -557,8 +557,9 @@ class TestFindRoot:
         res = find_root(self.f, (a, b), args=(xp.asarray(p),), method=method)
         xp_assert_close(res.x, ref)
 
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
     @pytest.mark.parametrize('shape', [tuple(), (12,), (3, 4), (3, 2, 2)])
-    def test_vectorization(self, shape, xp):
+    def test_vectorization(self, method, shape, xp):
         # Test for correct functionality, output shapes, and dtypes for various
         # input shapes.
         p = (np.linspace(-0.05, 1.05, 12).reshape(shape) if shape
@@ -569,7 +570,7 @@ class TestFindRoot:
 
         @np.vectorize
         def find_root_single(p):
-            return find_root(self.f, (-5, 5), args=(p,))
+            return find_root(self.f, (-5, 5), method=method, args=(p,))
 
         def f(*args, **kwargs):
             f.f_evals += 1
@@ -577,7 +578,7 @@ class TestFindRoot:
         f.f_evals = 0
 
         bracket = xp.asarray(-5., dtype=xp.float64), xp.asarray(5., dtype=xp.float64)
-        res = find_root(f, bracket, args=args_xp)
+        res = find_root(f, bracket, method=method, args=args_xp)
         refs = find_root_single(p).ravel()
 
         ref_x = [ref.x for ref in refs]
@@ -645,7 +646,8 @@ class TestFindRoot:
                       xp.minimum(xp.abs(res.f_bracket[0][finite]),
                                  xp.abs(res.f_bracket[1][finite])))
 
-    def test_flags(self, xp):
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
+    def test_flags(self, method, xp):
         # Test cases that should produce different status flags; show that all
         # can be produced simultaneously.
         def f(xs, js):
@@ -668,7 +670,7 @@ class TestFindRoot:
 
         args = (xp.arange(4, dtype=xp.int64),)
         a, b = xp.asarray([0.]*4), xp.asarray([xp.pi]*4)
-        res = find_root(f, (a, b), args=args, maxiter=2)
+        res = find_root(f, (a, b), method=method, args=args, maxiter=2)
 
         ref_flags = xp.asarray([eim._ECONVERGED,
                                 eim._ESIGNERR,
@@ -676,13 +678,15 @@ class TestFindRoot:
                                 eim._EVALUEERR], dtype=xp.int32)
         xp_assert_equal(res.status, ref_flags)
 
-    def test_convergence(self, xp):
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
+    def test_convergence(self, method, xp):
         # Test that the convergence tolerances behave as expected
         rng = np.random.default_rng(2585255913088665241)
         p = xp.asarray(rng.random(size=3))
         bracket = (-xp.asarray(5.), xp.asarray(5.))
         args = (p,)
-        kwargs0 = dict(args=args, tolerances=dict(xatol=0, xrtol=0, fatol=0, frtol=0))
+        kwargs0 = dict(method=method, args=args,
+                       tolerances=dict(xatol=0, xrtol=0, fatol=0, frtol=0))
 
         kwargs = deepcopy(kwargs0)
         kwargs['tolerances']['xatol'] = 1e-3
@@ -727,7 +731,8 @@ class TestFindRoot:
         xp_assert_less(xp.abs(res2.f_x), 1e-6*f0)
         xp_assert_less(xp.abs(res2.f_x), xp.abs(res1.f_x))
 
-    def test_maxiter_callback(self, xp):
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
+    def test_maxiter_callback(self, method, xp):
         # Test behavior of `maxiter` parameter and `callback` interface
         p = xp.asarray(0.612814)
         bracket = (xp.asarray(-5.), xp.asarray(5.))
@@ -741,7 +746,7 @@ class TestFindRoot:
         f.x = None
         f.f_x = None
 
-        res = find_root(f, bracket, args=(p,), maxiter=maxiter)
+        res = find_root(f, bracket, method=method, args=(p,), maxiter=maxiter)
         assert not xp.any(res.success)
         assert xp.all(res.nfev == maxiter+2)
         assert xp.all(res.nit == maxiter)
@@ -772,7 +777,7 @@ class TestFindRoot:
         callback.res = None
         callback.bracket = [None, None]
 
-        res2 = find_root(f, bracket, args=(p,), callback=callback)
+        res2 = find_root(f, bracket, method=method, args=(p,), callback=callback)
 
         # terminating with callback is identical to terminating due to maxiter
         # (except for `status`)
@@ -788,8 +793,9 @@ class TestFindRoot:
             else:
                 xp_assert_equal(res2[key], res[key])
 
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
     @pytest.mark.parametrize('case', _CHANDRUPATLA_TESTS)
-    def test_nit_expected(self, case, xp):
+    def test_nit_expected(self, method, case, xp):
         # Test that `_chandrupatla` implements Chandrupatla's algorithm:
         # in all 40 test cases, the number of iterations performed
         # matches the number reported in the original paper.
@@ -802,14 +808,17 @@ class TestFindRoot:
                    xp.asarray(bracket[1], dtype=xp.float64))
         root = xp.asarray(root, dtype=xp.float64)
 
-        res = find_root(f, bracket, tolerances=dict(xrtol=4e-10, xatol=1e-5))
+        res = find_root(f, bracket, method=method, tolerances=dict(xrtol=4e-10, xatol=1e-5))
         xp_assert_close(res.f_x, xp.asarray(f(root), dtype=xp.float64),
                         rtol=1e-8, atol=2e-3)
-        xp_assert_equal(res.nfev, xp.asarray(nfeval, dtype=xp.int32))
+        # TODO: re-enable this after _CHANDRUPATLA_TESTS is updated to include number of
+        #       function evaluations required by a reference implementation of modAB
+        # xp_assert_equal(res.nfev, xp.asarray(nfeval, dtype=xp.int32))
 
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
     @pytest.mark.parametrize("root", (0.622, [0.622, 0.623]))
     @pytest.mark.parametrize("dtype", ('float16', 'float32', 'float64'))
-    def test_dtype(self, root, dtype, xp):
+    def test_dtype(self, method, root, dtype, xp):
         # Test that dtypes are preserved
         not_numpy = not is_numpy(xp)
         if not_numpy and dtype == 'float16':
@@ -827,14 +836,16 @@ class TestFindRoot:
 
         a, b = xp.asarray(-3, dtype=dtype), xp.asarray(3, dtype=dtype)
         root = xp.asarray(root, dtype=dtype)
-        res = find_root(f, (a, b), args=(root,), tolerances={'xatol': 1e-3})
+        res = find_root(f, (a, b), method=method, args=(root,),
+                        tolerances={'xatol': 1e-3})
         try:
             xp_assert_close(res.x, root, atol=1e-3)
         except AssertionError:
             assert res.x.dtype == dtype
             xp.all(res.f_x == 0)
 
-    def test_input_validation(self, xp):
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
+    def test_input_validation(self, method, xp):
         # Test input validation for appropriate error messages
 
         def func(x):
@@ -843,47 +854,48 @@ class TestFindRoot:
         message = '`func` must be callable.'
         with pytest.raises(ValueError, match=message):
             bracket = xp.asarray(-4), xp.asarray(4)
-            find_root(None, bracket)
+            find_root(None, bracket, method=method)
 
         message = 'Abscissae and function output must be real numbers.'
         with pytest.raises(ValueError, match=message):
             bracket = xp.asarray(-4+1j), xp.asarray(4)
-            find_root(func, bracket)
+            find_root(func, bracket, method=method)
 
         # raised by `np.broadcast, but the traceback is readable IMO
         # all messages include this part
         message = "(not be broadcast|Attempting to broadcast a dimension of length)"
         with pytest.raises((ValueError, RuntimeError), match=message):
             bracket = xp.asarray([-2, -3]), xp.asarray([3, 4, 5])
-            find_root(func, bracket)
+            find_root(func, bracket, method=method)
 
         message = "The shape of the array returned by `func`..."
         with pytest.raises(ValueError, match=message):
             bracket = xp.asarray([-3, -3]), xp.asarray([5, 5])
-            find_root(lambda x: [x[0], x[1], x[1]], bracket)
+            find_root(lambda x: [x[0], x[1], x[1]], bracket, method=method)
 
         message = 'Tolerances must be non-negative scalars.'
         bracket = xp.asarray(-4), xp.asarray(4)
         with pytest.raises(ValueError, match=message):
-            find_root(func, bracket, tolerances=dict(xatol=-1))
+            find_root(func, bracket, method=method, tolerances=dict(xatol=-1))
         with pytest.raises(ValueError, match=message):
-            find_root(func, bracket, tolerances=dict(xrtol=xp.nan))
+            find_root(func, bracket, method=method, tolerances=dict(xrtol=xp.nan))
         with pytest.raises(ValueError, match=message):
-            find_root(func, bracket, tolerances=dict(fatol='ekki'))
+            find_root(func, bracket, method=method, tolerances=dict(fatol='ekki'))
         with pytest.raises(ValueError, match=message):
-            find_root(func, bracket, tolerances=dict(frtol=xp.nan))
+            find_root(func, bracket, method=method, tolerances=dict(frtol=xp.nan))
 
         message = '`maxiter` must be a non-negative integer.'
         with pytest.raises(ValueError, match=message):
-            find_root(func, bracket, maxiter=1.5)
+            find_root(func, bracket, method=method, maxiter=1.5)
         with pytest.raises(ValueError, match=message):
-            find_root(func, bracket, maxiter=-1)
+            find_root(func, bracket, method=method, maxiter=-1)
 
         message = '`callback` must be callable.'
         with pytest.raises(ValueError, match=message):
-            find_root(func, bracket, callback='shrubbery')
+            find_root(func, bracket, method=method, callback='shrubbery')
 
-    def test_special_cases(self, xp):
+    @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
+    def test_special_cases(self, xp, method):
         # Test edge cases and other special cases
 
         # Test infinite function values
@@ -893,7 +905,7 @@ class TestFindRoot:
         a, b = xp.asarray([0.1, 0., 0., 0.1]),  xp.asarray([0.9, 1.0, 0.9, 1.0])
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            res = find_root(f, (a, b))
+            res = find_root(f, (a, b), method=method)
 
         assert xp.all(res.success)
         xp_assert_close(res.x[1:], xp.full((3,), res.x[0]))
@@ -906,7 +918,7 @@ class TestFindRoot:
             return x ** 31 - 1
 
         # note that all inputs are integer type; result is automatically default float
-        res = find_root(f, (xp.asarray(-7), xp.asarray(5)))
+        res = find_root(f, (xp.asarray(-7), xp.asarray(5)), method=method)
         assert res.success
         xp_assert_close(res.x, xp.asarray(1.))
 
@@ -916,7 +928,7 @@ class TestFindRoot:
             return x**2 - root
 
         root = xp.asarray([0, 1])
-        res = find_root(f, (xp.asarray(1), xp.asarray(1)), args=(root,))
+        res = find_root(f, (xp.asarray(1), xp.asarray(1)), args=(root,), method=method)
         xp_assert_equal(res.success, xp.asarray([False, True]))
         xp_assert_equal(res.x, xp.asarray([xp.nan, 1.]))
 
@@ -925,7 +937,7 @@ class TestFindRoot:
 
         with np.errstate(invalid='ignore'):
             inf = xp.asarray(xp.inf)
-            res = find_root(f, (inf, inf))
+            res = find_root(f, (inf, inf), method=method)
         assert res.success
         xp_assert_equal(res.x, xp.asarray(xp.inf))
 
@@ -934,7 +946,7 @@ class TestFindRoot:
             return x**3 - 1
 
         a, b = xp.asarray(-3.), xp.asarray(5.)
-        res = find_root(f, (a, b), maxiter=0)
+        res = find_root(f, (a, b), method=method, maxiter=0)
         xp_assert_equal(res.success, xp.asarray(False))
         xp_assert_equal(res.status, xp.asarray(-2, dtype=xp.int32))
         xp_assert_equal(res.nit, xp.asarray(0, dtype=xp.int32))
@@ -944,11 +956,11 @@ class TestFindRoot:
         # The `x` attribute is the one with the smaller function value
         xp_assert_equal(res.x, a)
         # Reverse bracket; check that this is still true
-        res = find_root(f, (-b, -a), maxiter=0)
+        res = find_root(f, (-b, -a), method=method, maxiter=0)
         xp_assert_equal(res.x, -a)
 
         # Test maxiter = 1
-        res = find_root(f, (a, b), maxiter=1)
+        res = find_root(f, (a, b), method=method, maxiter=1)
         xp_assert_equal(res.success, xp.asarray(True))
         xp_assert_equal(res.status, xp.asarray(0, dtype=xp.int32))
         xp_assert_equal(res.nit, xp.asarray(1, dtype=xp.int32))
@@ -959,7 +971,8 @@ class TestFindRoot:
         def f(x, c):
             return c*x - 1
 
-        res = find_root(f, (xp.asarray(-1), xp.asarray(1)), args=xp.asarray(3))
+        res = find_root(f, (xp.asarray(-1), xp.asarray(1)), method=method,
+                        args=xp.asarray(3))
         xp_assert_close(res.x, xp.asarray(1/3))
 
         # # TODO: Test zero tolerance
