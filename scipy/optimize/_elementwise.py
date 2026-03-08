@@ -918,8 +918,8 @@ def _mod_ab(
 
         if work.x3 is None:
             # first check
-            work.x3 = xp.zeros_like(work.x1)
-            work.y3 = xp.zeros_like(work.y1)
+            work.x3 = work.x1
+            work.y3 = work.y1
             for x, y in [(work.x1, work.y1), (work.x2, work.y2)]:
                 i = xp.abs(y) <= work.fatol + work.frtol
                 work.status[i] = eim._ECONVERGED
