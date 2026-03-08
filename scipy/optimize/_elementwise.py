@@ -896,9 +896,18 @@ def _mod_ab(
                       ('fl', 'y1'), ('xr', 'x2'), ('fr', 'y2')]
 
     def pre_func_eval(work):
-        x_bisection = (work.x1 + work.x2) / 2.0
-        x_false_position = (work.x1 * work.y2 - work.y1 * work.x2) / (work.y2 - work.y1)
-        x = xp.where(work.bisection, x_bisection, x_false_position)
+        def bisection_step(x1, x2, y1, y2):
+            return (x1 + x2) / 2.0
+
+        def false_position_step(x1, x2, y1, y2):
+            return (x1 * y2 - y1 * x2) / (y2 - y1)
+
+        x = xpx.apply_where(
+            work.bisection,
+            (work.x1, work.x2, work.y1, work.y2),
+            bisection_step,
+            false_position_step,
+        )
         return x
 
     def post_func_eval(x, y, work):
@@ -909,10 +918,15 @@ def _mod_ab(
 
         if work.x3 is None:
             # first check
-            for y in [work.y1, work.y2]:
+            work.x3 = xp.zeros_like(work.x1)
+            work.y3 = xp.zeros_like(work.y1)
+            for x, y in [(work.x1, work.y1), (work.x2, work.y2)]:
                 i = xp.abs(y) <= work.fatol + work.frtol
                 work.status[i] = eim._ECONVERGED
                 stop[i] = True
+                work.x3[i] = x[i]
+                work.y3[i] = y[i]
+
             return stop
 
         # If function value tolerance is met, report successful convergence,
