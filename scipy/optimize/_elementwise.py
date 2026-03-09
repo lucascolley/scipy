@@ -999,6 +999,19 @@ def _mod_ab(
         work.side[i] = 0
 
     def customize_result(res, shape):
+        x3, y3 = res["x"], res["fun"]
+        j = xp.sign(res["fl"]) == xp.sign(y3)
+        nj = ~j
+        res["xl"][j], res["fl"][j] = x3[j], y3[j]
+        res["xr"][nj], res["fr"][nj] = x3[nj], y3[nj]
+
+        xl, xr, fl, fr = res['xl'], res['xr'], res['fl'], res['fr']
+        i = res['xl'] < res['xr']
+        res['xl'] = xp.where(i, xl, xr)
+        res['xr'] = xp.where(i, xr, xl)
+        res['fl'] = xp.where(i, fl, fr)
+        res['fr'] = xp.where(i, fr, fl)
+
         return shape
 
     return eim._loop(
