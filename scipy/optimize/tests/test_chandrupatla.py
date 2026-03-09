@@ -624,10 +624,10 @@ class TestFindRoot:
         ref_xr = xp.reshape(xp.asarray(ref_xr, dtype=dtype), shape)
         xp_assert_close(res.bracket[1], ref_xr)
 
-        xp_assert_less(res.bracket[0], res.bracket[1])
-        # finite = xp.isfinite(res.x)
-        # assert xp.all((res.x[finite] == res.bracket[0][finite])
-        #               | (res.x[finite] == res.bracket[1][finite]))
+        # xp_assert_less(res.bracket[0], res.bracket[1])
+        finite = xp.isfinite(res.x)
+        assert xp.all((res.x[finite] == res.bracket[0][finite])
+                      | (res.x[finite] == res.bracket[1][finite]))
 
         # PyTorch and CuPy don't solve to the same accuracy as NumPy - that's OK.
         atol = 1e-15 if is_numpy(xp) else 1e-9
@@ -635,16 +635,16 @@ class TestFindRoot:
         ref_fl = [ref.f_bracket[0] for ref in refs]
         ref_fl = xp.reshape(xp.asarray(ref_fl, dtype=dtype), shape)
         xp_assert_close(res.f_bracket[0], ref_fl, atol=atol)
-        # xp_assert_equal(res.f_bracket[0], self.f(res.bracket[0], *args_xp))
+        xp_assert_equal(res.f_bracket[0], self.f(res.bracket[0], *args_xp))
 
         ref_fr = [ref.f_bracket[1] for ref in refs]
         ref_fr = xp.reshape(xp.asarray(ref_fr, dtype=dtype), shape)
         xp_assert_close(res.f_bracket[1], ref_fr, atol=atol)
-        # xp_assert_equal(res.f_bracket[1], self.f(res.bracket[1], *args_xp))
+        xp_assert_equal(res.f_bracket[1], self.f(res.bracket[1], *args_xp))
 
-        # assert xp.all(xp.abs(res.f_x[finite]) ==
-        #               xp.minimum(xp.abs(res.f_bracket[0][finite]),
-        #                          xp.abs(res.f_bracket[1][finite])))
+        assert xp.all(xp.abs(res.f_x[finite]) ==
+                      xp.minimum(xp.abs(res.f_bracket[0][finite]),
+                                 xp.abs(res.f_bracket[1][finite])))
 
     @pytest.mark.parametrize('method', ['chandrupatla', 'mod_ab'])
     def test_flags(self, method, xp):
