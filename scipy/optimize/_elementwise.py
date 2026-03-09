@@ -893,8 +893,7 @@ def _mod_ab(
         nit=nit, nfev=nfev, status=status,)
     res_work_pairs = [('status', 'status'), ('x', 'x3'), ('fun', 'y3'),
                       ('nit', 'nit'), ('nfev', 'nfev'), ('xl', 'x1'),
-                      ('fl', 'y1'), ('xr', 'x2'), ('fr', 'y2'),
-                      ('bisection', 'bisection'), ('side', 'side'),]
+                      ('fl', 'y1'), ('xr', 'x2'), ('fr', 'y2')]
 
     def pre_func_eval(work):
         def bisection_step(x1, x2, y1, y2):
@@ -959,32 +958,6 @@ def _mod_ab(
         stop[i] = True
         return stop
 
-    def _update_brackets(y1, y2, y3, side, bisection, x1, x2, x3):
-        j = xp.sign(y1) == xp.sign(y3)
-        nj = ~j
-        side_1 = side == 1
-        side_neg1 = side == -1
-
-        side = xpx.at(side)[xp.logical_and(j, ~bisection)].set(1)
-        side = xpx.at(side)[xp.logical_and(~j, ~bisection)].set(-1)
-
-        m2 = 1 - y3 / y1
-        m1 = 1 - y3 / y2
-
-        update_y2 = xp.logical_and(j, side_1) 
-        update_y1 = xp.logical_and(nj, side_neg1)
-
-        new_y2 = xpx.apply_where(m2 <= 0, (m2, y2), lambda m, y: y / 2, lambda m, y: m * y)
-        new_y1 = xpx.apply_where(m1 <= 0, (m1, y1), lambda m, y: y / 2, lambda m, y: m * y)
-
-        y2 = xpx.at(y2)[update_y2].set(new_y2[update_y2])
-        y1 = xpx.at(y1)[update_y1].set(new_y1[update_y1])
-
-        x1[j], y1[j] = x3[j], y3[j]
-        x2[nj], y2[nj] = x3[nj], y3[nj]
-        
-        return x1, x2, y1, y2
-
     def post_termination_check(work):
         C = 16 # safetly factor for threshold corresponding to 4 iterations = 2^4
 
@@ -997,21 +970,35 @@ def _mod_ab(
         work.threshold = xp.where(work.bisection, threshold_bisection, work.threshold / 2)
         work.bisection = xp.where(i, False, work.bisection)
 
-        _ = _update_brackets(
-            work.y1, work.y2, work.y3, work.side, work.bisection,
-            work.x1, work.x2, work.x3,
-        )
+        j = xp.sign(work.y1) == xp.sign(work.y3)
+        nj = ~j
+        side_1 = work.side == 1
+        side_neg1 = work.side == -1
 
+        work.side = xpx.at(work.side)[xp.logical_and(j, ~work.bisection)].set(1)
+        work.side = xpx.at(work.side)[xp.logical_and(~j, ~work.bisection)].set(-1)
+
+        m2 = 1 - work.y3 / work.y1
+        m1 = 1 - work.y3 / work.y2
+
+        update_y2 = xp.logical_and(j, side_1) 
+        update_y1 = xp.logical_and(nj, side_neg1)
+
+        new_y2 = xpx.apply_where(m2 <= 0, (m2, work.y2), lambda m, y: y / 2, lambda m, y: m * y)
+        new_y1 = xpx.apply_where(m1 <= 0, (m1, work.y1), lambda m, y: y / 2, lambda m, y: m * y)
+
+        work.y2 = xpx.at(work.y2)[update_y2].set(new_y2[update_y2])
+        work.y1 = xpx.at(work.y1)[update_y1].set(new_y1[update_y1])
+
+        work.x1[j], work.y1[j] = work.x3[j], work.y3[j]
+        work.x2[nj], work.y2[nj] = work.x3[nj], work.y3[nj]
+        
         # AB failed to shrink the interval enough
         i = work.x2 - work.x1 > work.threshold 
         work.bisection[i] = True
         work.side[i] = 0
 
     def customize_result(res, shape):
-        res["xl"], res["xr"], res["fl"], res["fr"] = _update_brackets(
-            res["fl"], res["fr"], res["fun"], res["side"], res["bisection"],
-            res["xl"], res["xr"], res["x"],
-        )
         return shape
 
     return eim._loop(
