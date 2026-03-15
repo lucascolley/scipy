@@ -4,6 +4,40 @@ description = "Fundamental algorithms for scientific computing in Python."
 authors = ["SciPy Developers <scipy-dev@python.org>"]
 channels = ["https://prefix.dev/conda-forge"]
 platforms = ["linux-64", "osx-arm64", "win-64"]
+preview = ["pixi-build"]
+
+
+### SciPy Package Definition ###
+
+[workspace.target.win.build-variants]
+# currently failing, see https://github.com/conda-forge/clang-win-activation-feedstock/issues/65
+c_compiler = ["clang-cl"] 
+cxx_compiler = ["clang-cl"]
+fortran_compiler = ["flang"]
+fortran_compiler_version = ["21.*"]
+
+[package.build.backend]
+name = "pixi-build-python"
+version = "*"
+
+[package.build.config]
+compilers = ["c", "cxx", "fortran"]
+
+[package.host-dependencies]
+uv = "*"
+ccache = "*"
+pkg-config = "*"
+ninja = "*"
+meson = "*"
+meson-python = "*"
+cython = "*"
+pythran = "*"
+pybind11 = "*"
+numpy = "*"
+blas-devel = "*"
+
+[package.target.win-64.host-dependencies]
+openblas = "*"
 
 
 ### Environments ###
