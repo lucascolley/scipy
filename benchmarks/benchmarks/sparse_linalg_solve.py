@@ -84,13 +84,18 @@ class BatchedCGSparse(Benchmark):
     params = [
         # [2, 4, 6, 8, 16, 32, 64],
         # [1, 10, 100, 500, 1000, 5000, 10000],
-        [2, 8],
-        [1, 10],
+        [8, 16],
+        [500],
+        # [False, True],
         [False, True],
     ]
-    param_names = ['(n,n)', 'batch_size', 'pydata_sparse']
+    # param_names = ['(n,n)', 'batch_size', 'pydata_sparse', 'dense_solve']
+    param_names = ['(n*n,n*n)', 'batch_size', 'dense_solve']
 
-    def setup(self, n, batch_size, pydata_sparse):
+    # def setup(self, n, batch_size, pydata_sparse, dense_solve):
+    def setup(self, n, batch_size, dense_solve):
+        # if dense_solve and pydata_sparse:
+        #     raise NotImplementedError()
         if n >= 32 and batch_size >= 500:
             raise NotImplementedError()
         if n >= 16 and batch_size > 5000:
@@ -112,23 +117,39 @@ class BatchedCGSparse(Benchmark):
             P_sparse = _create_sparse_poisson2d(n)
             self.b = [rng.standard_normal(n*n) for _ in range(batch_size)]
         
-        if pydata_sparse:
-            with safe_import() as sparse_import:
-                import sparse as pydata_sparse_module
-            if sparse_import.error:
-                raise SkipNotImplemented("pydata/sparse not available")
-            P_sparse = pydata_sparse_module.GCXS.from_coo(
-                pydata_sparse_module.COO.from_scipy_sparse(P_sparse)
-            )
-        
-        self.P_sparse = P_sparse
+        # if pydata_sparse:
+        #     with safe_import() as sparse_import:
+        #         import sparse as pydata_sparse_module
+        #     if sparse_import.error:
+        #         raise SkipNotImplemented("pydata/sparse not available")
+        #     P_sparse = pydata_sparse_module.GCXS.from_coo(
+        #         pydata_sparse_module.COO.from_scipy_sparse(P_sparse)
+        #     )
 
-    def time_solve(self, n, batch_size, pydata_sparse):
-        if self.batched:
-            cg(self.P_sparse, self.b)
+        if dense_solve:
+            self.P = P_sparse.toarray()
+            b = self.b
+            if batch_size > 1:
+                b = np.swapaxes(b, -1, -2)
+            self.b = b
+        else:
+            self.P = P_sparse
+
+    # def solve(self, n, batch_size, pydata_sparse, dense_solve):
+    def solve(self, n, batch_size, dense_solve):
+        if dense_solve:
+            linalg.solve(self.P, self.b)
+        elif self.batched:
+            cg(self.P, self.b)
         else:
             for i in range(batch_size):
-                cg(self.P_sparse, self.b[i])
+                cg(self.P, self.b[i])
+
+    def time_solve(self, *args):
+        self.solve(*args)
+    
+    def peakmem_solve(self, *args):
+        self.solve(*args)
 
 
 class BatchedCGDense(XPBenchmark):
