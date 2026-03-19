@@ -73,6 +73,11 @@ def bicg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=No
     -----
     The preconditioner `M` should be a matrix such that ``M @ A`` has a smaller
     condition number than `A`, see [1]_ .
+    
+    `A`, `b`, `x0`, and `M` may have additional "batch" dimensions prepended to
+    the core shape. In this case, the array is treated as a
+    batch of lower-dimensional slices; see :ref:`linalg_batch`
+    and `LinearOperator` for details.
 
     References
     ----------
@@ -95,32 +100,39 @@ def bicg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=No
     True
     """
     A, M, x, b, xp = make_system(A, M, x0, b)
-    bnrm2 = np.linalg.norm(b)
+    bnrm2 = xp_vector_norm(b, axis=-1, xp=xp)
 
-    atol, _ = _get_atol_rtol('bicg', bnrm2, atol, rtol)
+    atol, _ = _get_atol_rtol('bicg', bnrm2, atol, rtol, xp=xp)
+    
+    result_shape = np.broadcast_shapes(A.shape[:-1], b.shape)
+    x, b = map(functools.partial(xp.broadcast_to, shape=result_shape), [x, b])
+    x = xp_copy(x, xp=xp)
 
-    if bnrm2 == 0:
+    if not xp.any(bnrm2):
         return b, 0
 
-    n = len(b)
-    dotprod = np.vdot if np.iscomplexobj(x) else np.dot
+    dotprod = functools.partial(xp.vecdot, axis=-1)
 
     if maxiter is None:
-        maxiter = n*10
+        maxiter = b.shape[-1] * 10
 
     matvec, rmatvec = A.matvec, A.rmatvec
     psolve, rpsolve = M.matvec, M.rmatvec
 
-    rhotol = np.finfo(x.dtype.char).eps**2
+    rhotol = xp.finfo(x.dtype).eps**2
 
     # Dummy values to initialize vars, silence linter warnings
     rho_prev, p, ptilde = None, None, None
 
-    r = b - matvec(x) if x.any() else b.copy()
-    rtilde = r.copy()
+    r = b - matvec(x) if xp.any(x) else xp_copy(b, xp=xp)
+    rtilde = xp_copy(r, xp=xp)
+    
+    # NOTE: unbatched column vectors ravelled in make_system, so 1-D
+    batched = A.ndim > 2 or b.ndim > 1
 
     for iteration in range(maxiter):
-        if np.linalg.norm(r) < atol:  # Are we done?
+        converged = xp_vector_norm(r, axis=-1, xp=xp) < atol
+        if xp.all(converged):
             return x, 0
 
         z = psolve(r)
@@ -128,30 +140,48 @@ def bicg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=No
         # order matters in this dot product
         rho_cur = dotprod(rtilde, z)
 
-        if np.abs(rho_cur) < rhotol:  # Breakdown case
+        if xp.all(xp.abs(rho_cur) < rhotol):  # Breakdown case
             return x, -10
 
         if iteration > 0:
-            beta = rho_cur / rho_prev
+            if is_lazy_array(converged):
+                beta = xp.where(~converged, rho_cur / rho_prev, 0.0)
+            elif not batched:
+                beta = rho_cur / rho_prev
+            else:
+                beta = xp.zeros_like(rho_cur)
+                mask = ~converged
+                beta[mask] = rho_cur[mask] / rho_prev[mask]
+            beta = beta[..., xp.newaxis]
+
             p *= beta
             p += z
-            ptilde *= beta.conj()
+            ptilde *= xp.conj(beta)
             ptilde += ztilde
         else:  # First spin
-            p = z.copy()
-            ptilde = ztilde.copy()
+            p = xp_copy(z, xp=xp)
+            ptilde = xp_copy(ztilde, xp=xp)
 
         q = matvec(p)
         qtilde = rmatvec(ptilde)
         rv = dotprod(ptilde, q)
 
-        if rv == 0:
+        if not xp.any(rv):
             return x, -11
 
-        alpha = rho_cur / rv
+        if is_lazy_array(converged):
+            alpha = xp.where(~converged, rho_cur / rv, 0.0)
+        elif not batched:
+            alpha = rho_cur / rv
+        else:
+            alpha = xp.zeros_like(rho_cur)
+            mask = ~converged
+            alpha[mask] = rho_cur[mask] / rv[mask]
+        alpha = alpha[..., xp.newaxis]
+
         x += alpha*p
         r -= alpha*q
-        rtilde -= alpha.conj()*qtilde
+        rtilde -= xp.conj(alpha) * qtilde
         rho_prev = rho_cur
 
         if callback:
@@ -209,6 +239,11 @@ def bicgstab(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None,
     -----
     The preconditioner `M` should be a matrix such that ``M @ A`` has a smaller
     condition number than `A`, see [1]_ .
+    
+    `A`, `b`, `x0`, and `M` may have additional "batch" dimensions prepended to
+    the core shape. In this case, the array is treated as a
+    batch of lower-dimensional slices; see :ref:`linalg_batch`
+    and `LinearOperator` for details.
 
     References
     ----------
@@ -235,70 +270,106 @@ def bicgstab(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None,
     True
     """
     A, M, x, b, xp = make_system(A, M, x0, b)
-    bnrm2 = np.linalg.norm(b)
+    bnrm2 = xp_vector_norm(b, axis=-1, xp=xp)
 
-    atol, _ = _get_atol_rtol('bicgstab', bnrm2, atol, rtol)
+    atol, _ = _get_atol_rtol('bicgstab', bnrm2, atol, rtol, xp=xp)
+    
+    result_shape = np.broadcast_shapes(A.shape[:-1], b.shape)
+    x, b = map(functools.partial(xp.broadcast_to, shape=result_shape), [x, b])
+    x = xp_copy(x, xp=xp)
 
-    if bnrm2 == 0:
+    if not xp.any(bnrm2):
         return b, 0
 
-    n = len(b)
-
-    dotprod = np.vdot if np.iscomplexobj(x) else np.dot
+    dotprod = functools.partial(xp.vecdot, axis=-1)
 
     if maxiter is None:
-        maxiter = n*10
+        maxiter = b.shape[-1] * 10
 
     matvec = A.matvec
     psolve = M.matvec
 
     # These values make no sense but coming from original Fortran code
     # sqrt might have been meant instead.
-    rhotol = np.finfo(x.dtype.char).eps**2
+    rhotol = xp.finfo(x.dtype).eps**2
     omegatol = rhotol
 
     # Dummy values to initialize vars, silence linter warnings
     rho_prev, omega, alpha, p, v = None, None, None, None, None
 
-    r = b - matvec(x) if x.any() else b.copy()
-    rtilde = r.copy()
+    r = b - matvec(x) if xp.any(x) else xp_copy(b, xp=xp)
+    rtilde = xp_copy(r, xp=xp)
+
+    # NOTE: unbatched column vectors ravelled in make_system, so 1-D
+    batched = A.ndim > 2 or b.ndim > 1
 
     for iteration in range(maxiter):
-        if np.linalg.norm(r) < atol:  # Are we done?
+        converged = xp_vector_norm(r, axis=-1, xp=xp) < atol
+        if xp.all(converged):
             return x, 0
 
         rho = dotprod(rtilde, r)
-        if np.abs(rho) < rhotol:  # rho breakdown
+        if xp.all(xp.abs(rho) < rhotol):  # rho breakdown
             return x, -10
 
         if iteration > 0:
-            if np.abs(omega) < omegatol:  # omega breakdown
+            if xp.all(xp.abs(omega) < omegatol):  # omega breakdown
                 return x, -11
+            
+            if is_lazy_array(converged):
+                beta = xp.where(~converged, (rho / rho_prev) * (alpha / omega), 0.0)
+            elif not batched:
+                beta = (rho / rho_prev) * (alpha / omega)
+            else:
+                beta = xp.zeros_like(rho)
+                mask = ~converged
+                beta[mask] = (rho[mask] / rho_prev[mask]) * (alpha[mask] * omega[mask])
+            beta = beta[..., xp.newaxis]
 
-            beta = (rho / rho_prev) * (alpha / omega)
             p -= omega*v
             p *= beta
             p += r
         else:  # First spin
-            s = np.empty_like(r)
-            p = r.copy()
+            p = xp_copy(r, xp=xp)
 
         phat = psolve(p)
         v = matvec(phat)
         rv = dotprod(rtilde, v)
-        if rv == 0:
+        if not xp.any(rv):
             return x, -11
-        alpha = rho / rv
-        r -= alpha*v
-        s[:] = r[:]
 
-        if np.linalg.norm(s) < atol:
+        if is_lazy_array(converged):
+            alpha = xp.where(~converged, rho / rv, 0.0)
+        elif not batched:
+            alpha = rho / rv
+        else:
+            alpha = xp.zeros_like(rho)
+            mask = ~converged
+            alpha[mask] = rho[mask] / rv[mask]
+        alpha = alpha[..., xp.newaxis]
+
+        r -= alpha*v
+        s = xp_copy(r, xp=xp)
+
+        if xp_vector_norm(s, axis=-1, xp=xp) < atol:
             x += alpha*phat
             return x, 0
 
         shat = psolve(s)
         t = matvec(shat)
-        omega = dotprod(t, s) / dotprod(t, t)
+
+        ts = dotprod(t, s)
+        tt = dotprod(t, t)
+        if is_lazy_array(converged):
+            omega = xp.where(~converged, ts / tt, 0.0)
+        elif not batched:
+            omega = ts / tt
+        else:
+            omega = xp.zeros_like(ts)
+            mask = ~converged
+            omega[mask] = ts[mask] / tt[mask]
+        omega = omega[..., xp.newaxis]
+        
         x += alpha*phat
         x += omega*shat
         r -= omega*t
@@ -391,15 +462,14 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
     True
     """
     A, M, x, b, xp = make_system(A, M, x0, b, nd_support=True)
-    # NOTE: unbatched column vectors ravelled in make_system, so 1-D
-    batched = A.ndim > 2 or b.ndim > 1
-    bnrm2 = xp_vector_norm(b, axis=-1)
+    bnrm2 = xp_vector_norm(b, axis=-1, xp=xp)
 
     atol, _ = _get_atol_rtol('cg', bnrm2, atol, rtol, xp=xp)
 
     result_shape = np.broadcast_shapes(A.shape[:-1], b.shape)
     x, b = map(functools.partial(xp.broadcast_to, shape=result_shape), [x, b])
     x = xp_copy(x, xp=xp)
+
     if not xp.any(bnrm2):
         return b, 0
 
@@ -410,13 +480,16 @@ def cg(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=None
 
     matvec = A.matvec
     psolve = M.matvec
-    r = b - matvec(x) if xp.any(x) else xp_copy(b)
+    r = b - matvec(x) if xp.any(x) else xp_copy(b, xp=xp)
 
     # Dummy value to initialize var, silences warnings
     rho_prev, p = None, None
+    
+    # NOTE: unbatched column vectors ravelled in make_system, so 1-D
+    batched = A.ndim > 2 or b.ndim > 1
 
     for iteration in range(maxiter):
-        converged = xp_vector_norm(r, axis=-1) < atol
+        converged = xp_vector_norm(r, axis=-1, xp=xp) < atol
         if xp.all(converged):
             return x, 0
 
@@ -510,6 +583,11 @@ def cgs(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=Non
     -----
     The preconditioner `M` should be a matrix such that ``M @ A`` has a smaller
     condition number than `A`, see [1]_.
+    
+    `A`, `b`, `x0`, and `M` may have additional "batch" dimensions prepended to
+    the core shape. In this case, the array is treated as a
+    batch of lower-dimensional slices; see :ref:`linalg_batch`
+    and `LinearOperator` for details.
 
     References
     ----------
@@ -536,71 +614,88 @@ def cgs(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=Non
     True
     """
     A, M, x, b, xp = make_system(A, M, x0, b)
-    bnrm2 = np.linalg.norm(b)
+    bnrm2 = xp_vector_norm(b, axis=-1, xp=xp)
 
-    atol, _ = _get_atol_rtol('cgs', bnrm2, atol, rtol)
+    atol, _ = _get_atol_rtol('cgs', bnrm2, atol, rtol, xp=xp)
+    
+    result_shape = np.broadcast_shapes(A.shape[:-1], b.shape)
+    x, b = map(functools.partial(xp.broadcast_to, shape=result_shape), [x, b])
+    x = xp_copy(x, xp=xp)
 
-    if bnrm2 == 0:
+    if not xp.any(bnrm2):
         return b, 0
 
-    n = len(b)
-
-    dotprod = np.vdot if np.iscomplexobj(x) else np.dot
-
     if maxiter is None:
-        maxiter = n*10
+        maxiter = b.shape[-1] * 10
+
+    dotprod = functools.partial(xp.vecdot, axis=-1)
 
     matvec = A.matvec
     psolve = M.matvec
 
-    rhotol = np.finfo(x.dtype.char).eps**2
+    rhotol = xp.finfo(x.dtype).eps**2
 
-    r = b - matvec(x) if x.any() else b.copy()
+    r = b - matvec(x) if xp.any(x) else xp_copy(b, xp=xp)
 
-    rtilde = r.copy()
-    bnorm = np.linalg.norm(b)
-    if bnorm == 0:
-        bnorm = 1
+    rtilde = xp_copy(r)
 
     # Dummy values to initialize vars, silence linter warnings
     rho_prev, p, u, q = None, None, None, None
+    
+    # NOTE: unbatched column vectors ravelled in make_system, so 1-D
+    batched = A.ndim > 2 or b.ndim > 1
 
     for iteration in range(maxiter):
-        rnorm = np.linalg.norm(r)
-        if rnorm < atol:  # Are we done?
+        converged = xp_vector_norm(r, axis=-1, xp=xp) < atol
+        if xp.all(converged):
             return x, 0
 
         rho_cur = dotprod(rtilde, r)
-        if np.abs(rho_cur) < rhotol:  # Breakdown case
+        if xp.all(xp.abs(rho_cur) < rhotol):  # Breakdown case
             return x, -10
 
         if iteration > 0:
-            beta = rho_cur / rho_prev
+            if is_lazy_array(converged):
+                beta = xp.where(~converged, rho_cur / rho_prev, 0.0)
+            elif not batched:
+                beta = rho_cur / rho_prev
+            else:
+                beta = xp.zeros_like(rho_cur)
+                mask = ~converged
+                beta[mask] = rho_cur[mask] / rho_prev[mask]
+            beta = beta[..., xp.newaxis]
 
             # u = r + beta * q
-            # p = u + beta * (q + beta * p);
-            u[:] = r[:]
             u += beta*q
 
+            # p = u + beta * (q + beta * p);
             p *= beta
             p += q
             p *= beta
             p += u
 
         else:  # First spin
-            p = r.copy()
-            u = r.copy()
-            q = np.empty_like(r)
+            p = xp_copy(r)
+            u = xp_copy(r)
 
         phat = psolve(p)
         vhat = matvec(phat)
         rv = dotprod(rtilde, vhat)
 
-        if rv == 0:  # Dot product breakdown
+        if not xp.any(rv):  # Dot product breakdown
             return x, -11
 
-        alpha = rho_cur / rv
-        q[:] = u[:]
+        if is_lazy_array(converged):
+            alpha = xp.where(~converged, rho_cur / rv, 0.0)
+        elif not batched:
+            alpha = rho_cur / rv
+        else:
+            alpha = xp.zeros_like(rho_cur)
+            mask = ~converged
+            alpha[mask] = rho_cur[mask] / rv[mask]
+        alpha = alpha[..., xp.newaxis]
+
+        q = xp_copy(u)
         q -= alpha*vhat
         uhat = psolve(u + q)
         x += alpha*uhat
@@ -623,6 +718,7 @@ def cgs(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M=None, callback=Non
         return x, maxiter
 
 
+# TODO: uses lapack directly
 @xp_capabilities(np_only=True)
 def gmres(A, b, x0=None, *, rtol=1e-5, atol=0., restart=None, maxiter=None, M=None,
           callback=None, callback_type=None):
@@ -948,12 +1044,16 @@ def qmr(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M1=None, M2=None,
     True
     """
     A_ = A
-    A, M, x, b, xp = make_system(A, None, x0, b)
-    bnrm2 = np.linalg.norm(b)
+    A, _, x, b, xp = make_system(A, None, x0, b)
+    bnrm2 = xp_vector_norm(b, axis=-1, xp=xp)
 
-    atol, _ = _get_atol_rtol('qmr', bnrm2, atol, rtol)
+    atol, _ = _get_atol_rtol('qmr', bnrm2, atol, rtol, xp=xp)
 
-    if bnrm2 == 0:
+    result_shape = np.broadcast_shapes(A.shape[:-1], b.shape)
+    x, b = map(functools.partial(xp.broadcast_to, shape=result_shape), [x, b])
+    x = xp_copy(x, xp=xp)
+
+    if not xp.any(bnrm2):
         return b, 0
 
     if M1 is None and M2 is None:
@@ -971,103 +1071,139 @@ def qmr(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M1=None, M2=None,
                 return A_.rpsolve(b, 'right')
             M1 = LinearOperator(A.shape,
                                 matvec=left_psolve,
-                                rmatvec=left_rpsolve)
+                                rmatvec=left_rpsolve,
+                                xp=xp)
             M2 = LinearOperator(A.shape,
                                 matvec=right_psolve,
-                                rmatvec=right_rpsolve)
+                                rmatvec=right_rpsolve,
+                                xp=xp)
         else:
             def id(b):
                 return b
-            M1 = LinearOperator(A.shape, matvec=id, rmatvec=id)
-            M2 = LinearOperator(A.shape, matvec=id, rmatvec=id)
+            M1 = LinearOperator(A.shape, matvec=id, rmatvec=id, xp=xp)
+            M2 = LinearOperator(A.shape, matvec=id, rmatvec=id, xp=xp)
 
-    n = len(b)
     if maxiter is None:
-        maxiter = n*10
+        maxiter = b.shape[-1] * 10
 
-    dotprod = np.vdot if np.iscomplexobj(x) else np.dot
+    dotprod = functools.partial(xp.vecdot, axis=-1)
 
-    rhotol = np.finfo(x.dtype.char).eps
+    rhotol = xp.finfo(x.dtype).eps
     betatol = rhotol
     gammatol = rhotol
     deltatol = rhotol
     epsilontol = rhotol
     xitol = rhotol
 
-    r = b - A.matvec(x) if x.any() else b.copy()
+    r = b - A.matvec(x) if xp.any(x) else xp_copy(b, xp=xp)
 
-    vtilde = r.copy()
+    vtilde = xp_copy(r, xp=xp)
     y = M1.matvec(vtilde)
-    rho = np.linalg.norm(y)
-    wtilde = r.copy()
+    rho = xp_vector_norm(y, axis=-1, xp=xp)
+    wtilde = xp_copy(r, xp=xp)
     z = M2.rmatvec(wtilde)
-    xi = np.linalg.norm(z)
+    xi = xp_vector_norm(z, axis=-1, xp=xp)
     gamma, eta, theta = 1, -1, 0
-    v = np.empty_like(vtilde)
-    w = np.empty_like(wtilde)
 
     # Dummy values to initialize vars, silence linter warnings
     epsilon, q, d, p, s = None, None, None, None, None
+    
+    # NOTE: unbatched column vectors ravelled in make_system, so 1-D
+    batched = A.ndim > 2 or b.ndim > 1
 
     for iteration in range(maxiter):
-        if np.linalg.norm(r) < atol:  # Are we done?
+        converged = xp_vector_norm(r, axis=-1, xp=xp) < atol
+        if xp.all(converged):
             return x, 0
-        if np.abs(rho) < rhotol:  # rho breakdown
+        if xp.all(xp.abs(rho) < rhotol):  # rho breakdown
             return x, -10
-        if np.abs(xi) < xitol:  # xi breakdown
+        if xp.all(xp.abs(xi) < xitol):  # xi breakdown
             return x, -15
 
-        v[:] = vtilde[:]
-        v *= (1 / rho)
-        y *= (1 / rho)
-        w[:] = wtilde[:]
-        w *= (1 / xi)
-        z *= (1 / xi)
+        v = xp_copy(vtilde, xp=xp)
+        
+        if is_lazy_array(converged):
+            one_over_rho = 1 / rho
+            v = xp.where(~converged, v * one_over_rho, v)
+            y = xp.where(~converged, y * one_over_rho, y)
+        elif not batched:
+            one_over_rho = 1 / rho
+            v *= one_over_rho
+            y *= one_over_rho
+        else:
+            mask = ~converged
+            one_over_rho = 1 / rho[mask]
+            v[mask] *= one_over_rho
+            y[mask] *= one_over_rho
+        v = v[..., xp.newaxis]
+        y = y[..., xp.newaxis]
+
+        w = xp_copy(wtilde, xp=xp)
+
+        if is_lazy_array(converged):
+            one_over_xi = 1 / xi
+            w = xp.where(~converged, w * one_over_xi, w)
+            z = xp.where(~converged, z * one_over_xi, z)
+        elif not batched:
+            one_over_xi = 1 / xi
+            w *= one_over_xi
+            z *= one_over_xi
+        else:
+            mask = ~converged
+            one_over_xi = 1 / xi[mask]
+            w[mask] *= one_over_xi
+            z[mask] *= one_over_xi
+        w = w[..., xp.newaxis]
+        z = z[..., xp.newaxis]
+
         delta = dotprod(z, y)
 
-        if np.abs(delta) < deltatol:  # delta breakdown
+        if xp.all(xp.abs(delta) < deltatol):  # delta breakdown
             return x, -13
 
         ytilde = M2.matvec(y)
         ztilde = M1.rmatvec(z)
 
+        # TODO: masking/lazy support
         if iteration > 0:
             ytilde -= (xi * delta / epsilon) * p
-            p[:] = ytilde[:]
-            ztilde -= (rho * (delta / epsilon).conj()) * q
-            q[:] = ztilde[:]
+            p = xp_copy(ytilde, xp=xp)
+            ztilde -= (rho * xp.conj(delta / epsilon)) * q
+            q = xp_copy(ztilde, xp=xp)
         else:  # First spin
-            p = ytilde.copy()
-            q = ztilde.copy()
+            p = xp_copy(ytilde, xp=xp)
+            q = xp_copy(ztilde, xp=xp)
 
         ptilde = A.matvec(p)
         epsilon = dotprod(q, ptilde)
-        if np.abs(epsilon) < epsilontol:  # epsilon breakdown
+        if xp.all(xp.abs(epsilon) < epsilontol):  # epsilon breakdown
             return x, -14
 
         beta = epsilon / delta
-        if np.abs(beta) < betatol:  # beta breakdown
+        if xp.all(xp.abs(beta) < betatol):  # beta breakdown
             return x, -11
 
-        vtilde[:] = ptilde[:]
+        vtilde = xp_copy(ptilde, xp=xp)
         vtilde -= beta*v
         y = M1.matvec(vtilde)
 
         rho_prev = rho
-        rho = np.linalg.norm(y)
-        wtilde[:] = w[:]
-        wtilde *= - beta.conj()
+        rho = xp_vector_norm(y, axis=-1, xp=xp)
+        wtilde = xp_copy(w, xp=xp)
+        wtilde *= -xp.conj(beta)
         wtilde += A.rmatvec(q)
         z = M2.rmatvec(wtilde)
-        xi = np.linalg.norm(z)
+        xi = xp_vector_norm(z, axis=-1, xp=xp)
         gamma_prev = gamma
         theta_prev = theta
-        theta = rho / (gamma_prev * np.abs(beta))
-        gamma = 1 / np.sqrt(1 + theta**2)
+        theta = rho / (gamma_prev * xp.abs(beta))
+        # TODO: masking/lazy support
+        gamma = 1 / xp.sqrt(1 + theta**2)
 
-        if np.abs(gamma) < gammatol:  # gamma breakdown
+        if xp.all(xp.abs(gamma) < gammatol):  # gamma breakdown
             return x, -12
 
+        # TODO: masking/lazy support
         eta *= -(rho_prev / beta) * (gamma / gamma_prev)**2
 
         if iteration > 0:
@@ -1076,9 +1212,9 @@ def qmr(A, b, x0=None, *, rtol=1e-5, atol=0., maxiter=None, M1=None, M2=None,
             s *= (theta_prev * gamma) ** 2
             s += eta*ptilde
         else:
-            d = p.copy()
+            d = xp_copy(p, xp=xp)
             d *= eta
-            s = ptilde.copy()
+            s = xp_copy(ptilde, xp=xp)
             s *= eta
 
         x += d
