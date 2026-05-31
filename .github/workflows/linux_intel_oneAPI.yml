@@ -104,7 +104,7 @@ jobs:
         shell: bash -l {0}
         run: |
           # Note that we have to install Pythran from PyPI to avoid pulling in compilers
-          # from conda-forge (those may break Intel Fortran, which rely on system GCC/Clang,
+          # from conda-forge (those may break Intel compilers, which rely on system GCC/Clang,
           # xref https://github.com/conda-forge/pythran-feedstock/issues/77).
           pip install pythran
           . /opt/intel/oneapi/setvars.sh --force
