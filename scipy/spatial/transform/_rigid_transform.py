@@ -1409,7 +1409,7 @@ class RigidTransform:
 
     def __setitem__(
         self,
-        indexer: int | slice | EllipsisType | None | ArrayLike,
+        indexer: int | slice | EllipsisType | ArrayLike,
         value: RigidTransform,
     ):
         """Set transform(s) at given index(es) in this object.

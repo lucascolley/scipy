@@ -2230,7 +2230,7 @@ class Rotation:
             return Rotation(self._xp.take(self._quat, indexer, axis=0), normalize=False)
         return Rotation(self._quat[indexer, ...], normalize=False)
 
-    def __setitem__(self, indexer: int | slice | EllipsisType | None, value: Rotation):
+    def __setitem__(self, indexer: int | slice | EllipsisType, value: Rotation):
         """Set rotation(s) at given index(es) from object.
 
         Parameters
