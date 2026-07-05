@@ -392,9 +392,8 @@ jobs:
       - name: build + test in i686 container
         run: |
           set -exuo pipefail
-          # Note: `ccache` not used because it isn't available on i686 CentOS 7
-          docker pull quay.io/pypa/manylinux2014_i686
-          docker run -v $(pwd):/scipy --platform=linux/i386 quay.io/pypa/manylinux2014_i686 /bin/bash -c "cd /scipy && \
+          docker pull quay.io/pypa/manylinux_2_28_i686
+          docker run -v $(pwd):/scipy --platform=linux/i386 quay.io/pypa/manylinux_2_28_i686 /bin/bash -c "cd /scipy && \
           uname -a && \
           python3.12 -m venv test && \
           source test/bin/activate && \
