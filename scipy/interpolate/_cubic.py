@@ -604,7 +604,10 @@ class Akima1DInterpolator(CubicHermiteSpline):
             f12 = f1 + f2
 
             # These are the mask of where the slope at breakpoint is defined:
-            mmax = xp.max(f12) if xp_size(f12) > 0 else -xp.inf
+            size_f12 = xp_size(f12)
+            # if the size is unknown, the `max` reduction is not guaranteed to work,
+            # so use the same fallback value as the known zero size case
+            mmax = xp.max(f12) if size_f12 is not None and size_f12 > 0 else -xp.inf
             ind = f12 > break_mult * mmax
             # Set the slope at breakpoint
             t = xp.where(
