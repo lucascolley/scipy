@@ -858,8 +858,6 @@ description = "Test SciPy with system libs"
 
 [feature.asan]
 platforms = ["osx-arm64", "linux-64"]
-# makes some packages solvable with dev Python
-channels = ["https://prefix.dev/sp-nightly-forge"]
 
 [feature.asan.dependencies]
 spin = "*"
@@ -874,7 +872,7 @@ numpy.git = "https://github.com/numpy/numpy"
 numpy.subdirectory = "pixi-packages/asan"
 numpy.rev = "6bc853b2fbb3721332de7e5dc44ea9b282bc260a"
 
-gmpy2 = { version = "*", channel = "https://prefix.dev/sp-nightly-forge" }
+gmpy2 = { git = "https://github.com/gmpy2/gmpy2", package = { version = "0", build = { backend.name = "pixi-build-python", config = { compilers = ["c"], ignore-pypi-mapping = false } }, host-dependencies = { gmp = "*", mpfr = "*", mpc = "*" } } }
 
 [feature.asan-build-deps.dependencies]
 ccache = "*"
