@@ -110,13 +110,13 @@ void *superlu_python_module_malloc(size_t size)
     mem_ptr = malloc(size);
     if (mem_ptr == NULL) {
         NPY_DISABLE_C_API;
-	return NULL;
+        return NULL;
     }
     key = PyLong_FromVoidPtr(mem_ptr);
     if (key == NULL)
-	goto fail;
+        goto fail;
     if (PyDict_SetItem(g->memory_dict, key, Py_None))
-	goto fail;
+        goto fail;
     Py_DECREF(key);
     NPY_DISABLE_C_API;
 
@@ -127,7 +127,7 @@ void *superlu_python_module_malloc(size_t size)
     NPY_DISABLE_C_API;
     free(mem_ptr);
     superlu_python_module_abort
-	("superlu_malloc: Cannot set dictionary key value in malloc.");
+        ("superlu_malloc: Cannot set dictionary key value in malloc.");
     return NULL;
 
 }
@@ -140,7 +140,7 @@ void superlu_python_module_free(void *ptr)
     NPY_ALLOW_C_API_DEF;
 
     if (ptr == NULL)
-	return;
+        return;
 
     NPY_ALLOW_C_API;
     g = get_tls_global();
@@ -212,8 +212,8 @@ void mc64id_(int *a)
 }
 
 void mc64ad_(int *a, int *b, int *c, int d[], int e[], double f[],
-	     int *g, int h[], int *i, int j[], int *k, double l[],
-	     int m[], int n[])
+             int *g, int h[], int *i, int j[], int *k, double l[],
+             int m[], int n[])
 {
     superlu_python_module_abort("chosen functionality not available");
 }
