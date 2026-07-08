@@ -164,7 +164,7 @@ static void SuperLUGlobal_dealloc(SuperLUGlobalObject *self)
 
     while (PyDict_Next(self->memory_dict, &pos, &key, &value)) {
         void *ptr;
-        ptr = PyLong_AsVoidPtr(value);
+        ptr = PyLong_AsVoidPtr(key);
         free(ptr);
     }
 
