@@ -48,6 +48,7 @@ jobs:
       - name: Set up ccache
         uses: ./.github/ccache
         with:
+          job_name: ${{ github.job }}
           workflow_name: ${{ github.workflow }}
 
       - name: Test SciPy
