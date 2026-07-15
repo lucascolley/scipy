@@ -161,17 +161,8 @@ If the wheel builds reveal issues that need to be fixed
 with backports on the maintenance branch, you may remove the local tags (for example
 ``git tag -d v1.2.0rc1``) and restart with tagging above on the new candidate commit.
 
-The ``cibuildwheel`` infrastructure runs the tests from the built wheels and if they pass,
-uploads the wheels to https://anaconda.org/multibuild-wheels-staging/scipy.
-
-From there you can download them for uploading to PyPI. This can be
-done in an automated fashion using ``tools/wheels/download-wheels.py``::
-
-  $ python tools/wheels/download-wheels.py 1.5.0rc1 -w REPO_ROOT/release/installers
-
-After this, we want to regenerate the README file, in order to have the MD5 and
-SHA256 checksums of the just downloaded wheels in it.  Run ``spin
-notes`` again.
+The release process is now automated in the ``scipy/scipy-release`` repository —
+pushing the tag will upload all wheels and the sdist directly to PyPI.
 
 
 Uploading release artifacts
