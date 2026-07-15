@@ -185,7 +185,6 @@ dev-cli = [
 
 typecheck = [
     # type checkers
-    "mypy==2.1.0",
     "pyrefly==1.1.1",
     # typing deps
     "typing_extensions",
@@ -274,7 +273,6 @@ PKG_CONFIG_PATH = "{project}"
 "Build & Develop" = [
   ".spin/cmds.py:build",
   ".spin/cmds.py:test",
-  ".spin/cmds.py:mypy",
   ".spin/cmds.py:lint",
   ".spin/cmds.py:check",
   "spin.cmds.pip.install"
