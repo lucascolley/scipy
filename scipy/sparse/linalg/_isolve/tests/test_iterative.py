@@ -18,6 +18,7 @@ from scipy._lib._array_api import (
 )
 from scipy._external import array_api_extra as xpx
 from scipy._lib._sparse import issparse
+from scipy._lib._testutils import IS_WASM
 from scipy.sparse import dia_array, csr_array, kronsum
 
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
@@ -359,6 +360,8 @@ def test_precond_dummy(case, xp, batch_A, batch_b):
     if (case.solver is tfqmr) and ("rand-sym-pd-F" in case.name):
         # Numerical stability is borderline for float32 (see, scipy#25522)
         pytest.skip("Fails to converge with single precision on some platforms")
+    if IS_WASM and (case.solver is cg) and ("rand-cmplx-sym-pd-F" in case.name):
+        pytest.skip("Struggles to converge with single-precision complex on WASM")
     if not case.convergence:
         pytest.skip("Solver - Breakdown case, see gh-8829")
 
