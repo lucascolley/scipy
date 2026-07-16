@@ -491,6 +491,7 @@ description = "Debug with gdb"
 ### Linting ###
 
 [feature.lint.dependencies]
+actionlint-with-all = "*"
 ruff = "*"
 cython-lint = "*"
 packaging = "*"
@@ -517,6 +518,10 @@ description = "Check external dependencies"
 [feature.lint.tasks.zizmor]
 cmd = "zizmor .github --config=.github/zizmor.yml"
 description = "Run zizmor (GitHub actions static analysis)"
+
+[feature.lint.tasks.actionlint]
+cmd = "actionlint"
+description = "Run actionlint (GitHub actions static analysis)"
 
 
 ### BLAS/LAPACK features ###

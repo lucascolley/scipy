@@ -51,4 +51,6 @@ jobs:
         run: pixi run tach-check-external
 
       - name: GitHub Actions static analysis
-        run: pixi run zizmor
+        run: |
+          pixi run actionlint
+          pixi run zizmor
