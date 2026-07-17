@@ -899,7 +899,7 @@ clangxx_osx-arm64 = "*"
 
 [feature.asan.tasks.build-asan]
 # `use-pythran=false` needed with py316dev due to https://github.com/serge-sans-paille/gast/issues/110
-cmd = "ls $PREFIX/bin && echo $PATH && spin build --asan --build-dir=build-asan --setup-args=-Duse-pythran=false --setup-args=-Dblas=blas --setup-args=-Dlapack=lapack --setup-args=-Duse-g77-abi=true"
+cmd = "ls $CONDA_PREFIX/bin && echo $PATH && spin build --asan --build-dir=build-asan --setup-args=-Duse-pythran=false --setup-args=-Dblas=blas --setup-args=-Dlapack=lapack --setup-args=-Duse-g77-abi=true"
 env.ASAN_OPTIONS = "detect_leaks=0:strict_init_order=true:use_sigaltstack=0"
 description = "Build SciPy, NumPy, and CPython with address sanitizer"
 
