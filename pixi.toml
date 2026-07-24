@@ -24,6 +24,10 @@ version = "*"
 [package.build.config]
 compilers = ["c", "cxx"]
 
+[workspace.build-variants]
+c_compiler = ["clang"]
+cxx_compiler = ["clangxx"]
+
 [workspace.target.win.build-variants]
 c_compiler = ["clang-cl"] 
 cxx_compiler = ["clang-cl"]
