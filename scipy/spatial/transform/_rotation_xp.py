@@ -241,7 +241,7 @@ def from_davenport(
         raise ValueError("Axes must be vectors of length 3.")
 
     axes = xpx.atleast_nd(axes, ndim=2, xp=xp)
-    angles = xpx.atleast_nd(angles, ndim=1, xp=xp) 
+    angles = xpx.atleast_nd(angles, ndim=1, xp=xp)
     num_axes = axes.shape[-2]
     if num_axes is None:
         raise ValueError(f"axes must have a known shape, got shape {axes.shape}")
@@ -629,23 +629,22 @@ def reduce(
 
 
 def apply(quat: Array, points: Array, inverse: bool = False) -> Array:
-    mat = as_matrix(quat)
-    # We do not have access to einsum. To avoid broadcasting issues, we add a singleton
-    # dimension to the points array and remove it after the operation.
-    points = points[..., None]
-    if not broadcastable(mat.shape, points.shape):
+    xp = array_namespace(quat)
+    if not broadcastable(quat.shape[:-1] + (3,), points.shape):
         raise ValueError(
             f"Cannot broadcast {quat.shape[:-1]} rotations to {points.shape[:-1]} "
             "vectors."
         )
+    # Quaternion rotation: p' = p + 2w(qv x p) + 2(qv x (qv x p))
+    qv = quat[..., :3]
+    w = quat[..., 3:4]
     if inverse:
-        return (mat.mT @ points)[..., 0]
-    return (mat @ points)[..., 0]
+        qv = -qv
+    t = 2.0 * xp.linalg.cross(qv, points)
+    return points + w * t + xp.linalg.cross(qv, t)
 
 
-def setitem(
-    quat: Array, value: Array, indexer: int | slice | EllipsisType
-) -> Array:
+def setitem(quat: Array, value: Array, indexer: int | slice | EllipsisType) -> Array:
     return xpx.at(quat)[indexer, ...].set(value)
 
 
