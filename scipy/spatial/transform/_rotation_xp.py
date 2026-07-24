@@ -170,10 +170,11 @@ def from_rotvec(rotvec: Array, degrees: bool = False) -> Array:
     # value of the Taylor series approximation, but non-branching operations require
     # that we still divide by the angle. Since we do not use the result where the angle
     # is close to 0, this is safe.
-    div_angle = angle + xp.asarray(small_angle, dtype=angle.dtype)
-    large_scale = xp.sin(angle / 2) / div_angle
+    half_angle = angle / 2
+    div_angle = angle + xp.astype(small_angle, angle.dtype)
+    large_scale = xp.sin(half_angle) / div_angle
     scale = xp.where(small_angle, small_scale, large_scale)
-    quat = xp.concat([rotvec * scale, xp.cos(angle / 2)], axis=-1)
+    quat = xp.concat([rotvec * scale, xp.cos(half_angle)], axis=-1)
     return quat
 
 
