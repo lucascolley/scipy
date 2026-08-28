@@ -74,9 +74,6 @@ np_dep = declare_dependency(include_directories: inc_np, compile_args: numpy_nod
 
 pybind11_dep = declare_dependency(
   dependencies: dependency('pybind11', version: '>=2.13.2'),
-  # https://github.com/pybind/pybind11/pull/6155
-  # https://github.com/pybind/pybind11/pull/6156
-  compile_args: cpp.get_supported_arguments('-Wno-unused-template'),
 )
 
 # Pythran include directory and build flags

@@ -301,7 +301,6 @@ meson = "*"
 meson-python = "*"
 cython = "*"
 pythran = "*"
-pybind11 = "*"
 # needed at build-time as well as run-time
 numpy = "*"
 blas-devel = "*"
@@ -919,6 +918,21 @@ description = "Test SciPy (with pytest-run-parallel and freethreaded Python)"
 [feature.build-clang-23.dependencies]
 python-build = "*"
 clang-23 = "*"
+pybind11 = {
+  git = "https://github.com/pybind/pybind11",
+  rev = "090b5bd842f3ec3b97b4cbdc602ee4df231239ea",
+  package = {
+    version = "3.1.0.patched",
+    build = {
+      backend.name = "pixi-build-python",
+      config = {
+        compilers = ["cxx"],
+        ignore-pypi-mapping = false,
+      },
+    },
+    build-dependencies.cmake = ">=3.15",
+  }
+}
 
 [feature.build-clang-23.tasks.build-clang-23]
 cmd = "python -m build -wnx -Csetup-args=--werror"
