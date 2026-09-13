@@ -47,33 +47,35 @@ def _create_sparse_poisson2d_coo(n):
 
 class Bench(Benchmark):
     params = [
-        [4, 6, 10, 16, 25, 40, 64, 100],
-        ['dense', 'spsolve', 'cg', 'minres', 'gmres', 'lgmres', 'gcrotmk',
-         'tfqmr'],
+        # [4, 6, 10, 16, 25, 40, 64, 100],
+        [4],
+        # ['dense', 'spsolve', 'cg', 'minres', 'gmres', 'lgmres', 'gcrotmk',
+        #  'tfqmr'],
+        ['cg'],
         [False, True],
     ]
     mapping = {'spsolve': spsolve, 'cg': cg, 'minres': minres, 'gmres': gmres,
                'lgmres': lgmres, 'gcrotmk': gcrotmk, 'tfqmr': tfqmr}
-    param_names = ['(n,n)', 'solver', 'pydata_sparse']
+    param_names = ['(n,n)', 'solver', 'finch']
 
-    def setup(self, n, solver, pydata_sparse):
+    def setup(self, n, solver, finch_tensor):
         if solver == 'dense' and n >= 25:
             raise NotImplementedError()
 
         self.b = np.ones(n*n)
         P_sparse = _create_sparse_poisson2d(n)
-        if pydata_sparse:
-            with safe_import() as sparse_import:
-                import sparse as pydata_sparse_module
-            if sparse_import.error:
-                raise SkipNotImplemented("pydata/sparse not available")
-            P_sparse = pydata_sparse_module.GCXS.from_scipy_sparse(P_sparse)
+        if finch_tensor:
+            with safe_import() as finch_import:
+                import finch
+            if finch_import.error:
+                raise SkipNotImplemented("finch-tensor not available")
+            P_sparse = finch.asarray(P_sparse)
         self.P_sparse = P_sparse
 
         if solver == 'dense':
             self.P_dense = self.P_sparse.toarray()
 
-    def time_solve(self, n, solver, pydata_sparse):
+    def time_solve(self, n, solver, finch_tensor):
         if solver == 'dense':
             linalg.solve(self.P_dense, self.b)
         else:
