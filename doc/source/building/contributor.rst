@@ -31,9 +31,9 @@ All other common development tasks are also available via ``pixi run``:
     pixi run test       # run the tests
     pixi run open-docs  # build and preview the docs
     pixi run lint       # run main lint checks
-    pixi run ipython    # spawn an ipython prompt with SciPy installed
+    pixi run ipython    # spawn an IPython prompt with SciPy installed
     pixi run smoke-docs # run the doctests
-    pixi run test-cpu   # run the tests with all cpu array backends
+    pixi run test-cpu   # run the tests with all CPU array backends
     pixi run bench      # run the benchmarks
 
 .. tip::
