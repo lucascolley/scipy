@@ -24,7 +24,10 @@ version = "*"
 [package.build.config]
 compilers = ["c", "cxx"]
 
-[workspace.target.win.build-variants]
+[package.build.target.win-arm64.config]
+extra-args = ["-Csetup-args=-Duse-pythran=false"]
+
+[workspace.target.win-64.build-variants]
 c_compiler = ["clang-cl"] 
 cxx_compiler = ["clang-cl"]
 
